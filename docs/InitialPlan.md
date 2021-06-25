@@ -5,10 +5,10 @@
 * I will be using OpenStreetMap data for Cambridgeshire, available in XML format
 
 ## Things to do
-- [] Research map data format - how it is organised and how we can parse it
-- [] Research path finding algorithms, I know a tiny bit of graph theory so will have to research this alongside path finding algorithms
-- [] Design data structures
-- [] Create UI
-- [] Plan algorithm
-- [] Create code
-- [] Have working code
+- [ ] Research map data format - how it is organised and how we can parse it
+- [ ] Research path finding algorithms, I know a tiny bit of graph theory so will have to research this alongside path finding algorithms
+- [ ] Design data structures
+- [ ] Create UI
+- [ ] Plan algorithm
+- [ ] Create code
+- [ ] Have working code

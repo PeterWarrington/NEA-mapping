@@ -10,5 +10,7 @@
 - [ ] Design data structures
 - [ ] Create UI
 - [ ] Plan algorithm
-- [ ] Create code
-- [ ] Have working code
+- [ ] Create code for plotting
+- [ ] Test code for plotting to verify it works
+- [ ] Create code for path finding
+- [ ] Test code for path finding to verify it works

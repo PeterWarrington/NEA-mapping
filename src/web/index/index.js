@@ -1,6 +1,25 @@
+var zoomLevel = 1;
+
 class MapPoint {
     x
     y
+
+    get displayedX() {
+        return this.x * zoomLevel;
+    }
+
+    get displayedY() {
+        return this.y * zoomLevel;
+    }
+
+    get pathPointDisplayX() {
+        return this.displayedX + this.options.pathDrawPointX;
+    }
+
+    get pathPointDisplayY() {
+        return this.displayedY + this.options.pathDrawPointY;
+    }
+
     ctx
     options = {
         pointDrawMethod: "text",
@@ -9,8 +28,9 @@ class MapPoint {
         pointFontWidth: 16,
         pointFillStyle: "#F6CA02",
         pathDrawPointX: 5,
-        pathDrawPointY: 0
+        pathDrawPointY: 1
     }
+
     pointConnectingTo
     constructor (x, y, ctx, pointConnectingTo=undefined, options={}) {
         this.x = x;
@@ -24,7 +44,7 @@ class MapPoint {
     drawPoint() {
         this.ctx.fillStyle = this.options.pointFillStyle;
         this.ctx.font = `${this.options.pointFontWidth}px ${this.options.pointFont}`;
-        this.ctx.fillText(this.options.pointText, this.x, this.y);
+        this.ctx.fillText(this.options.pointText, this.displayedX, this.displayedY);
     }
 
     get isEndOfPath() {
@@ -39,6 +59,10 @@ class Path {
         pathFillStyle: "#e8cc4a",
         pathLineWidth: 4,
         recalculatePathFlag: false
+    }
+
+    get lineWidth() {
+        return this.options.pathLineWidth;
     }
 
     constructor (startingPoint, ctx, options={}) {
@@ -73,19 +97,18 @@ class Path {
             this.options.recalculatePathFlag = false;
         }
 
+        this.ctx.lineWidth = this.lineWidth;
         this.ctx.beginPath();
         this.ctx.strokeStyle = this.options.pathFillStyle;
         
         // We need to plot the first point differently to the other points
         let firstPoint = this.pathPointArray[0];
-        this.ctx.moveTo(firstPoint.x + firstPoint.options.pathDrawPointX, 
-            firstPoint.y  + firstPoint.options.pathDrawPointY);
+        this.ctx.moveTo(firstPoint.pathPointDisplayX, firstPoint.pathPointDisplayY);
         this.pathPointArray.shift();
 
         // Plot other points
         this.pathPointArray.forEach(point => {
-            this.ctx.lineTo(point.x + point.options.pathDrawPointX, 
-                point.y  + point.options.pathDrawPointY);
+            this.ctx.lineTo(point.pathPointDisplayX, point.pathPointDisplayY);
         });
 
         // Draw line to canvas

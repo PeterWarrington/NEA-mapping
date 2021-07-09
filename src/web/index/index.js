@@ -1,4 +1,7 @@
 var zoomLevel = 1;
+var path;
+var ctx;
+var canvas;
 
 class MapPoint {
     x
@@ -121,17 +124,26 @@ class Path {
 }
 
 function MapTest() {
-    var canvas = document.getElementById("mapCanvas");
+    canvas = document.getElementById("mapCanvas");
+    ctx = canvas.getContext('2d');
 
     // Resize to 100% (html decleration does not work)
     canvas.width = document.getElementById("mapContainer").clientWidth;
 
-    var ctx = canvas.getContext("2d");
+    draw();
 
-    // Fill background
-    ctx.fillStyle = "#e6e6e6";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    document.getElementById("zoom-in").onclick = (event) => {
+        zoomLevel += 0.1;
+        draw();
+    };
 
+    document.getElementById("zoom-out").onclick = (event) => {
+        zoomLevel -= 0.1;
+        draw();
+    };
+}
+
+function updatePath() {
     // Create array of points to plot in sequential order
     pathPointArray = [
         new MapPoint(50, 50, ctx),
@@ -144,6 +156,18 @@ function MapTest() {
     startingPoint = Path.connectSequentialPoints(pathPointArray);
 
     path = new Path(startingPoint, ctx);
+}
+
+function draw() {
+    updatePath();
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Fill background
+    ctx.fillStyle = "#e6e6e6";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
     path.plotPoints();
     path.plotLine();
 }

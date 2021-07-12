@@ -1,4 +1,5 @@
 src/node_modules
 docs/*.osm
 docs/research/OSM-data
-src/logs/
+src/logs
+logs

@@ -6,21 +6,26 @@ var path;
 var ctx;
 /** The canvas element that displays the map */
 var canvas;
+var canvasMouseDown = false;
+var comparatorPageX = -1;
+var comparatorPageY = -1;
 
 class MapPoint {
     /** Fixed x position of point in relation to others */
     x
     /** Fixed y position of point in relation to others */
     y
+    xTranslation = 0;
+    yTranslation = 0;
 
     /** Gets the x position relative to the canvas */
     get displayedX() {
-        return this.x * zoomLevel;
+        return (this.x * zoomLevel) + this.xTranslation;
     }
 
     /** Gets the y position relative to the canvas */
     get displayedY() {
-        return this.y * zoomLevel;
+        return (this.y * zoomLevel) + this.yTranslation;
     }
 
     /** Gets the x position of where the path should be drawn relative to canvas */
@@ -131,11 +136,11 @@ class Path {
      * @returns The {MapPoint} object that starts the path
      */ 
     static connectSequentialPoints(pathArray) {
-        pathArray = pathArray.reverse();
-        for (let i = 1; i < pathArray.length; i++) {
-            pathArray[i].pointConnectingTo = pathArray[i-1];
+        var pathArrayCopy = Object.values(Object.assign({}, pathArray)).reverse();
+        for (let i = 1; i < pathArrayCopy.length; i++) {
+            pathArrayCopy[i].pointConnectingTo = pathArrayCopy[i-1];
         }
-        return pathArray[pathArray.length - 1];
+        return pathArrayCopy[pathArrayCopy.length - 1];
     }
 
     /**
@@ -151,14 +156,17 @@ class Path {
         this.ctx.lineWidth = this.lineWidth;
         this.ctx.beginPath();
         this.ctx.strokeStyle = this.options.pathFillStyle;
+
+        // Clone pathPointArray
+        var pathPointArrayCopy = Object.values(Object.assign({}, this.pathPointArray));
         
         // We need to plot the first point differently to the other points
-        let firstPoint = this.pathPointArray[0];
+        let firstPoint = pathPointArrayCopy[0];
         this.ctx.moveTo(firstPoint.pathPointDisplayX, firstPoint.pathPointDisplayY);
-        this.pathPointArray.shift();
+        pathPointArrayCopy.shift();
 
         // Plot other points
-        this.pathPointArray.forEach(point => {
+        pathPointArrayCopy.forEach(point => {
             this.ctx.lineTo(point.pathPointDisplayX, point.pathPointDisplayY);
         });
 
@@ -189,8 +197,18 @@ function MapTest() {
 
     canvas.width = document.getElementById("mapContainer").clientWidth - spacing;
 
+    // Create points
+    pathPointArray = [
+        new MapPoint(50, 50, ctx),
+        new MapPoint(60, 55, ctx),
+        new MapPoint(100, 70, ctx),
+        new MapPoint(110, 100, ctx)
+    ];
+
+    // Draw points
     draw();
 
+    // Zoom functionality
     document.getElementById("zoom-in").onclick = (event) => {
         zoomLevel += 0.1;
         draw();
@@ -200,6 +218,44 @@ function MapTest() {
         zoomLevel -= 0.1;
         draw();
     };
+
+    // Translation functionality
+    canvas.onmousedown = (event) => {
+        comparatorPageX = event.pageX;
+        comparatorPageY = event.pageY;
+        canvasMouseDown = true;
+        if (canvas.style.cursor == "grab")
+            canvas.style.cursor = "grabbing";
+    }
+    canvas.onmouseup = (event) => {
+        comparatorPageX = -1;
+        comparatorPageY = -1;
+        canvasMouseDown = false;
+        if (canvas.style.cursor == "grabbing")
+            canvas.style.cursor = "grab";
+    }
+    canvas.onmousemove = (event) => {
+        if (canvasMouseDown) {
+            var relativeMouseX = event.pageX - comparatorPageX;
+            var relativeMouseY = event.pageY - comparatorPageY;
+
+            pathPointArray.forEach((point) => {
+                point.xTranslation += relativeMouseX;
+                point.yTranslation += relativeMouseY;
+            });
+
+            comparatorPageX = event.pageX;
+            comparatorPageY = event.pageY;
+
+            draw();
+        }
+    }
+    canvas.onmouseenter = (event) => {
+        canvas.style.cursor = "grab";
+    }
+    canvas.onmouseleave = (event) => {
+        canvas.style.cursor = "default";
+    }
 }
 
 /**
@@ -224,8 +280,11 @@ function updatePath() {
  * Calls functions to draw path to screen
  */
 function draw() {
-    updatePath();
-    
+    // Convert points to a connecting set of points
+    startingPoint = Path.connectSequentialPoints(pathPointArray);
+
+    path = new Path(startingPoint, ctx);
+
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 

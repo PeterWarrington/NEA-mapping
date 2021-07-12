@@ -11,10 +11,8 @@ var logger = new (require('./logging.js').Logger)();
 
 // Using https://stackoverflow.com/a/29371929
 app.use(function (req, res, next) {
-    var filename = path.basename(req.url);
-    var extension = path.extname(filename);
-    if (extension === '.css')
-        logger.log("The file " + filename + " was requested.");
+    var filename = "/" + path.basename(req.url);
+    logger.log(filename + " was requested.");
     next();
 });
 

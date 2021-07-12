@@ -179,10 +179,15 @@ class Path {
  */
 function MapTest() {
     canvas = document.getElementById("mapCanvas");
+    mapContainerStyles = window.getComputedStyle(document.getElementById("mapContainer"));
     ctx = canvas.getContext('2d');
 
     // Resize to 100% (html decleration does not work)
-    canvas.width = document.getElementById("mapContainer").clientWidth;
+    paddingLeft = parseInt(mapContainerStyles.getPropertyValue('padding-left'));
+    paddingRight = parseInt(mapContainerStyles.getPropertyValue('padding-right'));
+    spacing = paddingLeft + paddingRight + 5;
+
+    canvas.width = document.getElementById("mapContainer").clientWidth - spacing;
 
     draw();
 

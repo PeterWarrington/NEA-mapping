@@ -202,15 +202,11 @@ function MapTest() {
 
     // Zoom functionality
     document.getElementById("zoom-in").onclick = (event) => {
-        zoomLevel += 0.1;
-        draw();
+        zoom(1);
     };
 
     document.getElementById("zoom-out").onclick = (event) => {
-        if (zoomLevel - 0.1 < 0.1)
-            return;
-        zoomLevel -= 0.1;
-        draw();
+        zoom(-1);
     };
 
     // Translation functionality
@@ -253,6 +249,14 @@ function MapTest() {
 
     // Redraw on window resize to make sure canvas is right size
     window.addEventListener('resize', draw);
+}
+
+function zoom(multiplier) {
+    let zoomChange = 0.1 * multiplier;
+    if (zoomLevel + zoomChange < 0.1)
+        return;
+    zoomLevel += zoomChange;
+    draw();
 }
 
 function updateCanvasWidth() {

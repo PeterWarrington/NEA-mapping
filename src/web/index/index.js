@@ -215,6 +215,8 @@ function MapTest() {
     };
 
     document.getElementById("zoom-out").onclick = (event) => {
+        if (zoomLevel - 0.1 < 0.1)
+            return;
         zoomLevel -= 0.1;
         draw();
     };

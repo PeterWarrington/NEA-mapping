@@ -7,6 +7,13 @@ This document lists the objectvies I hope to be able to acheive as part of my NE
 - [ ] A function will be available to find a efficient route from one location on the map to another using path theory. This will take into account distance and this route must be traversable in the real world.
     - [ ] **Extension:** Take into account traffic, whether that be based on a custom specified metric or the location of traffic lights along a route
 - [ ] Function serviced by database on the backend to allow a user to sign-in/register and save places/routes
+- [ ] Testers reports that they are able to easily:
+    - [ ] Find their home using the search function
+    - [ ] Generate a route
+    - [ ] Register and log-in
+    - [ ] Save this location and route to their account
+- [ ] Data structures and important algorithms are well-documented using comments
+- [ ] API is well documented
 
 ## Extension
 - [ ] Cache the most frequently accessed places directly on the database

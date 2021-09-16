@@ -14,6 +14,8 @@ This document lists the objectvies I hope to be able to acheive as part of my NE
     - [ ] Save this location and route to their account
 - [ ] Data structures and important algorithms are well-documented using comments
 - [ ] API is well documented
+- [ ] Effective use of object-oriented programming to be able to create effective data structures shared across the project, including the appropiate use of inheritance.
+- [ ] Normalised database structure to store the data mentioned above.
 
 ## Extension
 - [ ] Cache the most frequently accessed places directly on the database

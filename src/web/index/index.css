@@ -5,3 +5,13 @@
 #mapCanvas {
     border: 2px solid #8F1158;
 }
+/* Support mobile map by simply disabling scrolling [Needs better fix] */
+@media (pointer:none), (pointer:coarse) {
+    html, body {
+        overflow-x: hidden;
+        overflow-y: hidden;
+    }
+    body {
+        position: relative;
+    }
+}

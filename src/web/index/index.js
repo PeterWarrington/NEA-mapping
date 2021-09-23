@@ -17,10 +17,12 @@ class CanvasState {
     xTranslation = 0
     /** {int} representing how the map has been translated in y */
     yTranslation = 0
+    touchDevice = false
 
     constructor () {
         this.canvas = document.getElementById("mapCanvas");
         this.ctx = this.canvas.getContext('2d');
+        this.canvas.style.cursor = "default";
 
         // Zoom functionality
         document.getElementById("zoom-in").onclick = (event) => {
@@ -32,35 +34,27 @@ class CanvasState {
         };
 
         // Translation functionality
+        this.canvas.ontouchstart = (event) => {
+            this.touchDevice = true;
+            this.mapInteractionBegin(event.targetTouches[0].pageX, event.targetTouches[0].pageY);
+        }
+
         this.canvas.onmousedown = (event) => {
-            this.lastPageX = event.pageX;
-            this.lastPageY = event.pageY;
-            this.canvasMouseDown = true;
-            if (this.canvas.style.cursor == "grab")
-                this.canvas.style.cursor = "grabbing";
+            if (!this.touchDevice) {
+                this.mapInteractionBegin(event.pageX, event.pageY);
+            }
         }
         
-        this.canvas.onmouseup = (event) => {
-            this.lastPageX = -1;
-            this.lastPageY = -1;
-            this.canvasMouseDown = false;
-            if (this.canvas.style.cursor == "grabbing")
-            this.canvas.style.cursor = "grab";
+        this.canvas.ontouchend = () => this.mapInteractionEnd();
+        this.canvas.onmouseup = () => this.mapInteractionEnd();
+
+        this.canvas.ontouchmove = (event) => {
+            this.mapDrag(event.targetTouches[0].pageX, event.targetTouches[0].pageY);
         }
 
         this.canvas.onmousemove = (event) => {
-            if (this.canvasMouseDown) {
-                var relativeMouseX = event.pageX - this.lastPageX;
-                var relativeMouseY = event.pageY - this.lastPageY;
-
-                this.xTranslation += relativeMouseX;
-                this.yTranslation += relativeMouseY;
-
-                this.lastPageX = event.pageX;
-                this.lastPageY = event.pageY;
-
-                this.draw();
-            }
+            if (this.canvasMouseDown)
+                this.mapDrag(event.pageX, event.pageY);
         }
 
         this.canvas.onmouseenter = (event) => {
@@ -73,6 +67,35 @@ class CanvasState {
 
         // Redraw on window resize to make sure canvas is right size
         window.addEventListener('resize', () => this.draw());
+    }
+
+    mapInteractionEnd() {
+        this.lastPageX = -1;
+        this.lastPageY = -1;
+        this.canvasMouseDown = false;
+        if (this.canvas.style.cursor == "grabbing")
+        this.canvas.style.cursor = "grab";
+    }
+
+    mapInteractionBegin(pageX, pageY) {
+        this.lastPageX = pageX;
+        this.lastPageY = pageY;
+        this.canvasMouseDown = true;
+        if (this.canvas.style.cursor == "grab")
+            this.canvas.style.cursor = "grabbing";
+    }
+
+    mapDrag(pageX, pageY) {
+        var relativeMouseX = pageX - this.lastPageX;
+        var relativeMouseY = pageY - this.lastPageY;
+
+        this.xTranslation += relativeMouseX;
+        this.yTranslation += relativeMouseY;
+
+        this.lastPageX = pageX;
+        this.lastPageY = pageY;
+
+        this.draw();
     }
 
     /**

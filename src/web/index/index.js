@@ -173,7 +173,6 @@ class MapPoint {
         this.x = x;
         this.y = y;
         this.canvasState = canvasState;
-        this.pointsConnectingTo = pointsConnectingTo;
 
         this.options = {...this.options, ...options};
     }
@@ -186,34 +185,44 @@ class MapPoint {
         this.canvasState.ctx.font = `${this.options.pointFontWidth}px ${this.options.pointFont}`;
         this.canvasState.ctx.fillText(this.options.pointText, this.displayedX, this.displayedY);
     }
+}
 
-    /** Returns wether this is the last point of a path */
-    get isEndOfPath() {
-        return this.pointsConnectingTo == undefined;
-    }
+/**
+ * Defines 2 connecting points as part of a path and what these connect to.
+ */
+class PathPart {
+    /** The {Point} referenced by this path part */
+    point
+    /** The {Point} the first point connects to */
+    nextPathParts = []
+    /** {String} used to identify this {PathPart} */
+    data
 
     /**
-     * Connects a point to this point
-     * @param {Point} pointConnectingTo The point that you want to connect this point to
-     * @returns The point that you are connecting to this point
+     * @param {Point} point The point referenced by this path part
+     * @param {PathPart[]} nextPathParts Array of next part(s) in the path
+     * @param {Object} data Object storing additional parameters (optional)
      */
+    constructor (point=null, nextPathParts=[], data={}) {
+        this.point = point;
+        this.nextPathParts = nextPathParts;
+        this.data = data;
+    }
+
     connectingTo(pointConnectingTo) {
-        if (this.pointsConnectingTo == undefined)
-            this.pointsConnectingTo = [];
-        this.pointsConnectingTo.push(pointConnectingTo);
-        return pointConnectingTo;
+        var connectingPathPart = new PathPart(pointConnectingTo, []);
+        this.nextPathParts.push(connectingPathPart);
+        return connectingPathPart;
     }
 }
 
 class Path {
-    /** The {string} used to identify the path */
-    pathId
-    /** The {MapPoint} object that starts the path */
-    startingPoint
+    /** The {PathPart} object that begins the path */
+    startingPathPart
     /** The {canvasState} instance */
     canvasState
-    /** Options for the path when drawing to screen */
-    options = {
+    /** Data, including options for the path when drawing to screen */
+    data = {
         pathFillStyle: "#e8cc4a",
         pathLineWidth: 4,
         recalculatePathFlag: false
@@ -221,86 +230,99 @@ class Path {
 
     /** Returns the line width to be displayed on the canvas */
     get lineWidth() {
-        return this.options.pathLineWidth;
+        return this.data.pathLineWidth;
     }
 
     /**
      * Creates a path using a starting points
-     * @param {MapPoint} startingPoint The {MapPoint} object that starts the path
+     * @param {PathPart} startingPathPart The {PathPart} object that begins the path
      * @param {CanvasRenderingContext2D} ctx The {CanvasRenderingContext2D} that is used on the canvas
-     * @param {object} options Options for the path when drawing to screen
+     * @param {object} data Data, including options for the path when drawing to screen
      */
-    constructor (startingPoint, canvasState, pathId, options={}) {
-        this.startingPoint = startingPoint;
+    constructor (startingPathPart, canvasState, pathId, data={}) {
+        this.startingPathPart = startingPathPart;
         this.canvasState = canvasState;
-        this.options = {...this.options, ...options};
+        this.data = {...this.data, ...data};
         this.pathId = pathId;
     }
 
     /**
-     * Converts a tree of connecting points to a array of all points (for drawing individual points unconnectedly)
-     * @param {MapPoint} startingPoints The {MapPoint[]} object containing a starting point on a path
-     * @param {MapPoint[]} pathArray A sequential array of {MapPoint}s
+     * Converts a tree of connecting points to a array of all points (for drawing individual points unconnectedly).
      * @returns {MapPoint[]} 
      */
-    static getAllPointsOnPath(startingPoints, pathArray=[]) {
-        startingPoints.forEach(startingPoint => {
-            pathArray.push(startingPoint);
-            if (startingPoint.pointsConnectingTo != undefined)
-                Path.getAllPointsOnPath(startingPoint.pointsConnectingTo, pathArray);
-        });
+    getAllPointsOnPath(currentPathPart=this.startingPathPart, pathArray=[]) {
+        if (currentPathPart.nextPathParts != null && currentPathPart.nextPathParts.length != 0) {
+            for (var i=0; i < currentPathPart.nextPathParts.length; i++) {
+                if (i==0)
+                    pathArray.push(currentPathPart.point);
+                pathArray.push(currentPathPart.nextPathParts[i].point);
+                this.getAllPointsOnPath(currentPathPart=currentPathPart.nextPathParts[i], pathArray);
+            }
+        }
         return pathArray;
     }
 
     /**
-     * Converts a sequential array of points to a tree of connecting points
+     * Converts a sequential array of points to a path
      * @param {MapPoint[]} pathArray A sequential array of {MapPoint}s
-     * @returns {MapPoint} The {MapPoint} object that starts the path
+     * @returns {Path} The {MapPoint} object that starts the path
      */ 
-    static connectSequentialPoints(pathArray) {
+    static connectSequentialPoints(pathArray, canvasState) {
+        // Copy pathArray
         var pathArrayCopy = Object.values(Object.assign({}, pathArray)).reverse();
-        for (let i = 1; i < pathArrayCopy.length; i++) {
-            pathArrayCopy[i].pointsConnectingTo = [pathArrayCopy[i-1]];
+        // Set up path parts
+        var startingPathPart;
+        var previousPathPart;
+
+        for (let i = 0; i < pathArray.length; i++) {
+            var currentPathPart = new PathPart(pathArray[i], []);
+
+            if (i == 0)
+                startingPathPart = currentPathPart;
+            if (previousPathPart != undefined)
+                previousPathPart.nextPathParts = [currentPathPart];
+                
+            previousPathPart = currentPathPart;
         }
-        return pathArrayCopy[pathArrayCopy.length - 1];
+        var newPath = new Path(startingPathPart, canvasState, "path");
+        return newPath;
     }
 
     /**
-     * Plots line connecting points in this.startingPoint to screen.
+     * Plots line connecting points in this.startingPathPart to screen.
      */
     plotLine() {
         // Set properties
         this.canvasState.ctx.lineWidth = this.lineWidth;
-        this.canvasState.ctx.strokeStyle = this.options.pathFillStyle;
+        this.canvasState.ctx.strokeStyle = this.data.pathFillStyle;
 
         this.canvasState.ctx.beginPath();
         
-        // Initialize array containing the  initial points to draw
-        let startingPointsToDraw = [...this.startingPoint.pointsConnectingTo];
+        // Initialize array containing the  initial PathParts to draw
+        let startingPathPartsToDraw = [this.startingPathPart];
 
-        // Iterate through startingPointsToDraw
-        for (let i = 0; i < startingPointsToDraw.length; i++) {
-            const startingPoint = startingPointsToDraw[i];
+        // Iterate through startingPathPartsToDraw
+        for (let i = 0; i < startingPathPartsToDraw.length; i++) {
+            const startingPathPart = startingPathPartsToDraw[i];
             
             // Move to the starting point
-            this.canvasState.ctx.moveTo(this.startingPoint.pathPointDisplayX, this.startingPoint.pathPointDisplayY);
+            this.canvasState.ctx.moveTo(startingPathPart.point.pathPointDisplayX, 
+                startingPathPart.point.pathPointDisplayY);
 
-            // If we get to a branch, push the other branches to startingPointsToDraw to iterate through later
-            let currentPoint = startingPoint;
-            while (!currentPoint.isEndOfPath) {
-                // Plot a line from the last plotted point to the point at currentPoint
-                this.canvasState.ctx.lineTo(currentPoint.pathPointDisplayX, currentPoint.pathPointDisplayY);
-
-                if (currentPoint.pointsConnectingTo.length > 1) {
-                    for (let j = 1; j < currentPoint.pointsConnectingTo.length; j++) {
-                        startingPointsToDraw.push(currentPoint.pointsConnectingTo[j]);
-                    }
+            // If we get to a branch, push the other branches to startingPathPartsToDraw to iterate through later
+            let currentPathPart = startingPathPart;
+            while (currentPathPart.nextPathParts.length != 0) {
+                // Plot a line from the last plotted point to the point at currentPathPart
+                this.canvasState.ctx.lineTo(currentPathPart.point.pathPointDisplayX, 
+                    currentPathPart.point.pathPointDisplayY);
+                for (let j = 1; j < currentPathPart.nextPathParts.length; j++) {
+                    startingPathPartsToDraw.push(currentPathPart.nextPathParts[j]);
                 }
                 
                 // Advance pointer to next connecting point in the closest branch
-                currentPoint = currentPoint.pointsConnectingTo[0];
+                currentPathPart = currentPathPart.nextPathParts[0];
             }
-            this.canvasState.ctx.lineTo(currentPoint.pathPointDisplayX, currentPoint.pathPointDisplayY);
+            this.canvasState.ctx.lineTo(currentPathPart.point.pathPointDisplayX, currentPathPart.point.pathPointDisplayY);
             
             // Draw line to canvas
             this.canvasState.ctx.stroke();
@@ -311,7 +333,7 @@ class Path {
      * Plots markers for points in this.startingPoint
      */
     plotPoints() {
-        Path.getAllPointsOnPath([this.startingPoint]).forEach(point => point.drawPoint());
+        this.getAllPointsOnPath().forEach(point => point.drawPoint());
     }
 }
 
@@ -323,22 +345,22 @@ function MapTest() {
     canvasState = new CanvasState();
 
     // Create path 1
-    var startingPointPath1 = new MapPoint(50, 50, canvasState, {pointText: "📍\t\tPath 1"});
-    startingPointPath1.connectingTo(new MapPoint(60, 55, canvasState))
+    var startingPathPart1 = new PathPart(new MapPoint(50, 50, canvasState, {pointText: "📍\t\tPath 1"}));
+    startingPathPart1.connectingTo(new MapPoint(60, 55, canvasState))
     .connectingTo(new MapPoint(100, 70, canvasState))
     .connectingTo(new MapPoint(110, 100, canvasState));
 
-    var path1 = new Path(startingPointPath1, canvasState, "Path1");
+    var path1 = new Path(startingPathPart1, canvasState, "Path1");
 
     // Create path 2
-    var startingPointPath2 = new MapPoint(30, 200, canvasState, {pointText: "📍\t\tPath 2"});
-    startingPointPath2.connectingTo(new MapPoint(400, 170, canvasState))
+    var startingPathPart2 = new PathPart(new MapPoint(30, 200, canvasState, {pointText: "📍\t\tPath 2"}));
+    startingPathPart2.connectingTo(new MapPoint(400, 170, canvasState))
     .connectingTo(new MapPoint(300, 250, canvasState))
     .connectingTo(new MapPoint(270, 20, canvasState))
     .connectingTo(new MapPoint(120, 100, canvasState))
     .connectingTo(new MapPoint(160, 160, canvasState));
 
-    var path2 = new Path(startingPointPath2, canvasState, "Path2");
+    var path2 = new Path(startingPathPart2, canvasState, "Path2");
 
     canvasState.paths = [path1, path2];
         

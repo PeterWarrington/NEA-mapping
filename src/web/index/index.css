@@ -1,17 +1,27 @@
 .header-icon {
-    margin-right: 15px;
     font-size: 12pt;
+    color: #fff;
 }
 #mapCanvas {
-    border: 2px solid #8F1158;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: -1000;
 }
-/* Support mobile map by simply disabling scrolling [Needs better fix] */
-@media (pointer:none), (pointer:coarse) {
-    html, body {
-        overflow-x: hidden;
-        overflow-y: hidden;
-    }
-    body {
-        position: relative;
-    }
+html, body {
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+#header {
+    background-color: #202124f1;
+}
+#footer {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background-color: #202124f1;
+}
+#controls {
+    width: 15px;
+    position: absolute;
 }

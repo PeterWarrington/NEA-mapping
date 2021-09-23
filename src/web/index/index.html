@@ -11,45 +11,40 @@
 </head>
 <body>
     <!-- header -->
-    <div class="container-md">
-        <header class="d-flex flex-wrap justify-content-center py-3 mb-4 border-bottom">
-            <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-3 me-md-auto text-dark text-decoration-none">
-              <span class="header-icon">🗺</span>
-              <span class="fs-4">Mapping test</span>
-            </a>
-      
-            <ul class="nav nav-pills ms-auto">
-              <li class="nav-item"><a href="#" class="nav-link active" aria-current="page">Home</a></li>
-            </ul>
-          </header>
-    </div>
+    <header class="d-flex flex-wrap justify-content-center py-3 border-bottom px-2" id="header">
+        <a href="/" class="d-flex align-items-center mb-3 mb-md-0 me-3 me-md-auto text-light text-decoration-none">
+          <span class="header-icon mx-3">🗺</span>
+          <span class="fs-4">Mapping test</span>
+        </a>
+  
+        <ul class="nav nav-pills ms-auto">
+          <li class="nav-item"><a href="#" class="mx-2 btn btn-outline-light" aria-current="page">Home</a></li>
+        </ul>
+      </header>
 
     <!-- Contains page content, mainly map and map controls-->
-    <div id="mapContainer" class="container-md">
-        <h1>Map:</h1>
+    <div id="mapContainer">
         <canvas id="mapCanvas" height="350px" width="100%"></canvas>
-
-        <!-- Zoom controls -->
-        <h3>Controls:</h3>
-        <span>Zoom: </span>
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-primary" id="zoom-in">+</button>
-            <button type="button" class="btn btn-primary" id="zoom-out">-</button>
-        </div>
+    </div>
+    
+    <!-- Zoom controls -->
+    <div id="controls" class="d-grid gap-1 m-1">
+      <button type="button" class="btn btn-outline-primary bg-light text-primary" id="zoom-in">+</button>
+      <button type="button" class="btn btn-outline-primary bg-light text-primary" id="zoom-out">-</button>
     </div>
 
-    <footer class="text-muted mt-5 border-top pt-4">
-      <div class="container">
-        <p>
-          Peter Warrington's Untitled Mapping Project. <a href="https://github.com/PeterWarrington/NEA-mapping/" class="link-secondary">See it on GitHub</a>.
-        </p>
-        <p>
-          Map emoji favicon: Sourced from the <a href="https://twemoji.twitter.com/" class="link-secondary">Twemoji project</a> - 
-          Copyright 2020 Twitter, Inc and other contributors - 
-          licensed under the <a href="https://creativecommons.org/licenses/by/4.0/" class="link-secondary">CC-BY 4.0</a> license.
-        </p>
-      </div>
+    <footer class="text-light mt-3 border-top pt-3 px-4" id="footer">
+      <p>
+        Peter Warrington's Untitled Mapping Project. <a href="https://github.com/PeterWarrington/NEA-mapping/" class="text-light">See it on GitHub</a>.
+      </p>
+      <p>
+        Map emoji favicon: Sourced from the <a href="https://twemoji.twitter.com/" class="link-light">Twemoji project</a> - 
+        Copyright 2020 Twitter, Inc and other contributors - 
+        licensed under the <a href="https://creativecommons.org/licenses/by/4.0/" class="link-light">CC-BY 4.0</a> license.
+      </p>
     </footer>
+
+    
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
 </body>

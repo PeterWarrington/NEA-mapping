@@ -132,14 +132,9 @@ class CanvasState {
      * Updates the width of the canvas displayed on screen
      */
     updateCanvasWidth() {
-        let mapContainerStyles = window.getComputedStyle(document.getElementById("mapContainer"));
-    
         // Resize to 100% (html decleration does not work)
-        let paddingLeft = parseInt(mapContainerStyles.getPropertyValue('padding-left'));
-        let paddingRight = parseInt(mapContainerStyles.getPropertyValue('padding-right'));
-        let spacing = paddingLeft + paddingRight + 5;
-    
-        this.canvas.width = document.getElementById("mapContainer").clientWidth - spacing;
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
     }
 }
 
@@ -393,3 +388,17 @@ function MapTest() {
 
 // Once the page has fully loaded, call MapTest
 document.addEventListener('DOMContentLoaded', MapTest, false);
+
+// Libraries
+
+// https://stackoverflow.com/a/23749355/
+function getAbsoluteHeight(el) {
+    // Get the DOM Node if you pass in a string
+    el = (typeof el === 'string') ? document.querySelector(el) : el; 
+
+    var styles = window.getComputedStyle(el);
+    var margin = parseFloat(styles['marginTop']) +
+                    parseFloat(styles['marginBottom']);
+
+    return Math.ceil(el.offsetHeight + margin);
+}

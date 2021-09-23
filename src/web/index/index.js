@@ -89,13 +89,17 @@ class CanvasState {
         var relativeMouseX = pageX - this.lastPageX;
         var relativeMouseY = pageY - this.lastPageY;
 
-        this.xTranslation += relativeMouseX;
-        this.yTranslation += relativeMouseY;
+        this.mapTranslate(relativeMouseX, relativeMouseY);
 
         this.lastPageX = pageX;
         this.lastPageY = pageY;
 
         this.draw();
+    }
+
+    mapTranslate(translateX, translateY) {
+        this.xTranslation += translateX;
+        this.yTranslation += translateY;
     }
 
     /**
@@ -381,6 +385,9 @@ function MapTest() {
     var path2 = new Path(startingPathPart2, canvasState, "Path2");
 
     canvasState.paths = [path1, path2];
+
+    // Translate graph so does not overlap header
+    canvasState.mapTranslate(15, getAbsoluteHeight(document.getElementById("header")) + 15);
         
     // Draw points
     canvasState.draw();

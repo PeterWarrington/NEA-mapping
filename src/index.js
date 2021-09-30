@@ -6,6 +6,7 @@ const hostname = '127.0.0.1';
 const port = 80;
 const options = {index: "index/index.html"};
 const path = require("path");
+var shared = require('./shared/sharedStructures.js').shared;
 
 var logger = new (require('./logging.js').Logger)();
 

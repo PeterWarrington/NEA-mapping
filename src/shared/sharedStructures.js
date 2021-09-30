@@ -1,4 +1,11 @@
-class MapPoint {
+shared = {};
+
+// If running on backend, make accessible
+try {
+    module.exports.shared = shared;
+} catch {}
+
+shared.MapPoint = class MapPoint {
     /** Fixed x position of point in relation to others */
     x
     /** Fixed y position of point in relation to others */
@@ -68,7 +75,7 @@ class MapPoint {
 /**
  * Defines 2 connecting points as part of a path and what these connect to.
  */
-class PathPart {
+shared.PathPart = class PathPart {
     /** The {Point} referenced by this path part */
     point
     /** The {Point} the first point connects to */
@@ -94,7 +101,7 @@ class PathPart {
     }
 }
 
-class Path {
+shared.Path = class Path {
     /** The {PathPart} object that begins the path */
     startingPathPart
     /** The {canvasState} instance */

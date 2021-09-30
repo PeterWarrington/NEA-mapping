@@ -17,5 +17,7 @@ app.use(function (req, res, next) {
     next();
 });
 
+app.get("/api/GetPaths", (req, res) => require("./api/getPaths.js").getPaths(shared, req, res));
+
 app.use(express.static('web', options));
 app.listen(port);

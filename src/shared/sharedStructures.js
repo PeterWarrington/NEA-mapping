@@ -63,6 +63,23 @@ shared.MapPoint = class MapPoint {
     }
 
     /**
+     * Converts a simple object representing a MapPoint (such as that returned from an API)
+     * to a MapPoint.
+     * @param {Object} object the MapPoint represented as a simple object to convert
+     * @param {CanvasState} canvasState The CanvasState
+     * @returns MapPoint
+     */
+    static mapPointFromObject(object, canvasState) {
+        var mapPoint = new shared.MapPoint(null, null, null);
+        mapPoint.x = object.x;
+        mapPoint.y = object.y;
+        mapPoint.canvasState = canvasState;
+        mapPoint.options = object.options;
+
+        return mapPoint;
+    }
+
+    /**
      * Function to draw the point to the screen
      */
     drawPoint() {
@@ -92,6 +109,27 @@ shared.PathPart = class PathPart {
         this.point = point;
         this.nextPathParts = nextPathParts;
         this.data = data;
+    }
+
+    /**
+     * Converts a simple object representing a PathPart (such as that returned from an API)
+     * to a PathPart.
+     * @param {Object} object the path part represented as a simple object to convert
+     * @param {CanvasState} canvasState The CanvasState
+     * @returns PathPart
+     */
+    static pathPartFromObject (object, canvasState) {
+        var pathPart = new shared.PathPart();
+
+        pathPart.point = shared.MapPoint.mapPointFromObject(object.point, canvasState);
+        pathPart.nextPathParts = [];
+        object.nextPathParts.forEach((pathPartObject) => {
+            var pathPartToAdd = shared.PathPart.pathPartFromObject(pathPartObject, canvasState);
+            pathPart.nextPathParts.push(pathPartToAdd);
+        });
+        pathPart.data = object.data;
+
+        return pathPart;
     }
 
     connectingTo(pointConnectingTo) {
@@ -129,6 +167,24 @@ shared.Path = class Path {
         this.canvasState = canvasState;
         this.data = {...this.data, ...data};
         this.pathId = pathId;
+    }
+
+    /**
+     * Converts a simple object representing a Path (such as that returned from an API)
+     * to a Path.
+     * @param {Object} object the path represented as a simple object to convert
+     * @param {CanvasState} canvasState The CanvasState
+     * @returns Path
+     */
+    static pathFromObject(object, canvasState) {
+        var path = new shared.Path(null, null, null);
+
+        path.startingPathPart = shared.PathPart.pathPartFromObject(object.startingPathPart, canvasState);
+        path.canvasState = canvasState;
+        path.data = object.data;
+        path.pathId = object.pathId;
+
+        return path;
     }
 
     /**

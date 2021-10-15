@@ -128,8 +128,8 @@ class CanvasState {
         this.ctx.fillStyle = "#e6e6e6";
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        this.paths.forEach(path => path.plotPoints());
-        this.paths.forEach(path => path.plotLine());
+        this.paths.forEach(path => path.plotPoints(this));
+        this.paths.forEach(path => path.plotLine(this));
     }
 
     /**
@@ -141,6 +141,148 @@ class CanvasState {
         this.canvas.height = window.innerHeight;
     }
 }
+
+class Path extends shared.Path {
+    /** The {canvasState} instance */
+    canvasState
+
+    constructor (startingPathPart=null, canvasState=null, pathId=null, data={}) {
+        super();
+        this.startingPathPart = startingPathPart;
+        this.canvasState = canvasState;
+        this.data = {...this.data, ...data};
+        this.pathId = pathId;
+    }
+
+    /**
+     * Plots line connecting points in this.startingPathPart to screen.
+     */
+     plotLine(canvasState=canvasState) {
+        if (canvasState == null) {
+            console.warn("Canvas state not defined, unable to plot path.");
+            return;
+        }
+
+        // Set properties
+        canvasState.ctx.lineWidth = this.lineWidth;
+        canvasState.ctx.strokeStyle = this.data.pathFillStyle;
+
+        canvasState.ctx.beginPath();
+        
+        // Initialize array containing the  initial PathParts to draw
+        let startingPathPartsToDraw = [this.startingPathPart];
+
+        // Iterate through startingPathPartsToDraw
+        for (let i = 0; i < startingPathPartsToDraw.length; i++) {
+            const startingPathPart = startingPathPartsToDraw[i];
+            startingPathPart.point.canvasState = canvasState;
+
+            // Move to the starting point
+            canvasState.ctx.moveTo(startingPathPart.point.pathPointDisplayX, 
+                startingPathPart.point.pathPointDisplayY);
+
+            // If we get to a branch, push the other branches to startingPathPartsToDraw to iterate through later
+            let currentPathPart = startingPathPart;
+            while (currentPathPart.nextPathParts.length != 0) {
+                currentPathPart.point.canvasState = canvasState;
+
+                // Plot a line from the last plotted point to the point at currentPathPart
+                canvasState.ctx.lineTo(currentPathPart.point.pathPointDisplayX, 
+                    currentPathPart.point.pathPointDisplayY);
+                for (let j = 1; j < currentPathPart.nextPathParts.length; j++) {
+                    startingPathPartsToDraw.push(currentPathPart.nextPathParts[j]);
+                }
+                
+                // Advance pointer to next connecting point in the closest branch
+                currentPathPart = currentPathPart.nextPathParts[0];
+            }
+            canvasState.ctx.lineTo(currentPathPart.point.pathPointDisplayX, currentPathPart.point.pathPointDisplayY);
+            
+            // Draw line to canvas
+            canvasState.ctx.stroke();
+        }
+    }
+
+    /**
+     * Plots markers for points in this.startingPoint
+     */
+    plotPoints(canvasState=canvasState) {
+        this.getAllPointsOnPath().forEach(point => point.drawPoint(canvasState));
+    }
+}
+
+shared.Path = Path;
+
+class PathPart extends shared.PathPart {
+    /**
+     * @param {Point} point The point referenced by this path part
+     * @param {PathPart[]} nextPathParts Array of next part(s) in the path
+     * @param {Object} data Object storing additional parameters (optional)
+     */
+     constructor (point=null, nextPathParts=[], data={}) {
+        super();
+        this.point = point;
+        this.nextPathParts = nextPathParts;
+        this.data = data;
+    }
+}
+
+shared.PathPart = PathPart;
+
+class MapPoint extends shared.MapPoint {
+    canvasState
+
+    /**
+     * Creates a point that can form part of a path and be displayed on a canvas.
+     * @param {int} x Fixed x position of point in relation to others
+     * @param {int} y Fixed y position of point in relation to others
+     * @param {MapPoint} pointsConnectingTo The sequential {MapPoint} that follows this one. Can be undefined.
+     * @param {object} options Options for the point when drawing to screen
+     */
+     constructor (x, y, options={}, pointsConnectingTo=undefined) {
+        super();
+        this.x = x;
+        this.y = y;
+
+        this.options = {...this.options, ...options};
+    }
+
+    /** Gets the x position relative to the canvas */
+    get displayedX() {
+        return (this.x * canvasState.zoomLevel) + canvasState.xTranslation;
+    }
+
+    /** Gets the y position relative to the canvas */
+    get displayedY() {
+        return (this.y * canvasState.zoomLevel) + canvasState.yTranslation;
+    }
+
+    /** Gets the x position of where the path should be drawn relative to canvas */
+    get pathPointDisplayX() {
+        return this.displayedX + this.options.pathDrawPointX;
+    }
+
+    /** Gets the y position of where the path should be drawn relative to canvas */
+    get pathPointDisplayY() {
+        return this.displayedY + this.options.pathDrawPointY;
+    }
+
+    /**
+     * Function to draw the point to the screen
+     */
+     drawPoint(canvasState=canvasState) {
+        if (canvasState == null) {
+            console.warn("Canvas state not defined, unable to draw point.");
+            return;
+        }
+
+        canvasState.ctx.fillStyle = this.options.pointFillStyle;
+        canvasState.ctx.font = `${this.options.pointFontWidth}px ${this.options.pointFont}`;
+        canvasState.ctx.fillText(this.options.pointText, this.displayedX, this.displayedY);
+    }
+}
+
+shared.MapPoint = MapPoint;
 
 /**
  * Function called at page load to test some points on canvas
@@ -159,7 +301,9 @@ function MapTest() {
         // we need to convert this
         pathObjectArray = JSON.parse(httpReq.response);
         pathObjectArray.forEach((pathObject) => {
-            canvasState.paths.push(shared.Path.pathFromObject(pathObject, canvasState));
+            let pathToPush = Path.pathFromObject(pathObject);
+            pathToPush.canvasState = canvasState;
+            canvasState.paths.push(pathToPush);
         });
             
         // Draw points

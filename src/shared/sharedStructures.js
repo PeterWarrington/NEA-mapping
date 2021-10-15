@@ -10,28 +10,6 @@ shared.MapPoint = class MapPoint {
     x
     /** Fixed y position of point in relation to others */
     y
-    /** The {canvasState} instance */
-    canvasState
-
-    /** Gets the x position relative to the canvas */
-    get displayedX() {
-        return (this.x * this.canvasState.zoomLevel) + this.canvasState.xTranslation;
-    }
-
-    /** Gets the y position relative to the canvas */
-    get displayedY() {
-        return (this.y * this.canvasState.zoomLevel) + this.canvasState.yTranslation;
-    }
-
-    /** Gets the x position of where the path should be drawn relative to canvas */
-    get pathPointDisplayX() {
-        return this.displayedX + this.options.pathDrawPointX;
-    }
-
-    /** Gets the y position of where the path should be drawn relative to canvas */
-    get pathPointDisplayY() {
-        return this.displayedY + this.options.pathDrawPointY;
-    }
 
     /** Options for the point when drawing to screen */
     options = {
@@ -46,18 +24,17 @@ shared.MapPoint = class MapPoint {
 
     /** {MapPoint[]} array containing the {MapPoint}s that this point connects to. Can be undefined. */
     pointsConnectingTo
+
     /**
      * Creates a point that can form part of a path and be displayed on a canvas.
      * @param {int} x Fixed x position of point in relation to others
      * @param {int} y Fixed y position of point in relation to others
-     * @param {CanvasRenderingContext2D} ctx The {CanvasRenderingContext2D} that is used on the canvas
      * @param {MapPoint} pointsConnectingTo The sequential {MapPoint} that follows this one. Can be undefined.
      * @param {object} options Options for the point when drawing to screen
      */
-    constructor (x, y, canvasState, options={}, pointsConnectingTo=undefined) {
+    constructor (x, y, options={}, pointsConnectingTo=undefined) {
         this.x = x;
         this.y = y;
-        this.canvasState = canvasState;
 
         this.options = {...this.options, ...options};
     }
@@ -66,26 +43,15 @@ shared.MapPoint = class MapPoint {
      * Converts a simple object representing a MapPoint (such as that returned from an API)
      * to a MapPoint.
      * @param {Object} object the MapPoint represented as a simple object to convert
-     * @param {CanvasState} canvasState The CanvasState
      * @returns MapPoint
      */
-    static mapPointFromObject(object, canvasState) {
+    static mapPointFromObject(object) {
         var mapPoint = new shared.MapPoint(null, null, null);
         mapPoint.x = object.x;
         mapPoint.y = object.y;
-        mapPoint.canvasState = canvasState;
         mapPoint.options = object.options;
 
         return mapPoint;
-    }
-
-    /**
-     * Function to draw the point to the screen
-     */
-    drawPoint() {
-        this.canvasState.ctx.fillStyle = this.options.pointFillStyle;
-        this.canvasState.ctx.font = `${this.options.pointFontWidth}px ${this.options.pointFont}`;
-        this.canvasState.ctx.fillText(this.options.pointText, this.displayedX, this.displayedY);
     }
 }
 
@@ -115,16 +81,15 @@ shared.PathPart = class PathPart {
      * Converts a simple object representing a PathPart (such as that returned from an API)
      * to a PathPart.
      * @param {Object} object the path part represented as a simple object to convert
-     * @param {CanvasState} canvasState The CanvasState
      * @returns PathPart
      */
-    static pathPartFromObject (object, canvasState) {
+    static pathPartFromObject (object) {
         var pathPart = new shared.PathPart();
 
-        pathPart.point = shared.MapPoint.mapPointFromObject(object.point, canvasState);
+        pathPart.point = shared.MapPoint.mapPointFromObject(object.point);
         pathPart.nextPathParts = [];
         object.nextPathParts.forEach((pathPartObject) => {
-            var pathPartToAdd = shared.PathPart.pathPartFromObject(pathPartObject, canvasState);
+            var pathPartToAdd = shared.PathPart.pathPartFromObject(pathPartObject);
             pathPart.nextPathParts.push(pathPartToAdd);
         });
         pathPart.data = object.data;
@@ -142,13 +107,10 @@ shared.PathPart = class PathPart {
 shared.Path = class Path {
     /** The {PathPart} object that begins the path */
     startingPathPart
-    /** The {canvasState} instance */
-    canvasState
     /** Data, including options for the path when drawing to screen */
     data = {
         pathFillStyle: "#e8cc4a",
-        pathLineWidth: 4,
-        recalculatePathFlag: false
+        pathLineWidth: 4
     }
 
     /** Returns the line width to be displayed on the canvas */
@@ -159,12 +121,10 @@ shared.Path = class Path {
     /**
      * Creates a path using a starting points
      * @param {PathPart} startingPathPart The {PathPart} object that begins the path
-     * @param {CanvasRenderingContext2D} ctx The {CanvasRenderingContext2D} that is used on the canvas
      * @param {object} data Data, including options for the path when drawing to screen
      */
-    constructor (startingPathPart, canvasState, pathId, data={}) {
+    constructor (startingPathPart, pathId, data={}) {
         this.startingPathPart = startingPathPart;
-        this.canvasState = canvasState;
         this.data = {...this.data, ...data};
         this.pathId = pathId;
     }
@@ -173,14 +133,12 @@ shared.Path = class Path {
      * Converts a simple object representing a Path (such as that returned from an API)
      * to a Path.
      * @param {Object} object the path represented as a simple object to convert
-     * @param {CanvasState} canvasState The CanvasState
      * @returns Path
      */
-    static pathFromObject(object, canvasState) {
-        var path = new shared.Path(null, null, null);
+    static pathFromObject(object) {
+        var path = new shared.Path(null, null);
 
-        path.startingPathPart = shared.PathPart.pathPartFromObject(object.startingPathPart, canvasState);
-        path.canvasState = canvasState;
+        path.startingPathPart = shared.PathPart.pathPartFromObject(object.startingPathPart);
         path.data = object.data;
         path.pathId = object.pathId;
 
@@ -208,7 +166,7 @@ shared.Path = class Path {
      * @param {MapPoint[]} pathArray A sequential array of {MapPoint}s
      * @returns {Path} The {MapPoint} object that starts the path
      */ 
-    static connectSequentialPoints(pathArray, canvasState) {
+    static connectSequentialPoints(pathArray) {
         // Copy pathArray
         var pathArrayCopy = Object.values(Object.assign({}, pathArray)).reverse();
         // Set up path parts
@@ -225,55 +183,7 @@ shared.Path = class Path {
                 
             previousPathPart = currentPathPart;
         }
-        var newPath = new Path(startingPathPart, canvasState, "path");
+        var newPath = new Path(startingPathPart, "path");
         return newPath;
-    }
-
-    /**
-     * Plots line connecting points in this.startingPathPart to screen.
-     */
-    plotLine() {
-        // Set properties
-        this.canvasState.ctx.lineWidth = this.lineWidth;
-        this.canvasState.ctx.strokeStyle = this.data.pathFillStyle;
-
-        this.canvasState.ctx.beginPath();
-        
-        // Initialize array containing the  initial PathParts to draw
-        let startingPathPartsToDraw = [this.startingPathPart];
-
-        // Iterate through startingPathPartsToDraw
-        for (let i = 0; i < startingPathPartsToDraw.length; i++) {
-            const startingPathPart = startingPathPartsToDraw[i];
-            
-            // Move to the starting point
-            this.canvasState.ctx.moveTo(startingPathPart.point.pathPointDisplayX, 
-                startingPathPart.point.pathPointDisplayY);
-
-            // If we get to a branch, push the other branches to startingPathPartsToDraw to iterate through later
-            let currentPathPart = startingPathPart;
-            while (currentPathPart.nextPathParts.length != 0) {
-                // Plot a line from the last plotted point to the point at currentPathPart
-                this.canvasState.ctx.lineTo(currentPathPart.point.pathPointDisplayX, 
-                    currentPathPart.point.pathPointDisplayY);
-                for (let j = 1; j < currentPathPart.nextPathParts.length; j++) {
-                    startingPathPartsToDraw.push(currentPathPart.nextPathParts[j]);
-                }
-                
-                // Advance pointer to next connecting point in the closest branch
-                currentPathPart = currentPathPart.nextPathParts[0];
-            }
-            this.canvasState.ctx.lineTo(currentPathPart.point.pathPointDisplayX, currentPathPart.point.pathPointDisplayY);
-            
-            // Draw line to canvas
-            this.canvasState.ctx.stroke();
-        }
-    }
-
-    /**
-     * Plots markers for points in this.startingPoint
-     */
-    plotPoints() {
-        this.getAllPointsOnPath().forEach(point => point.drawPoint());
     }
 }

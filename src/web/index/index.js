@@ -146,6 +146,13 @@ class Path extends shared.Path {
     /** The {canvasState} instance */
     canvasState
 
+    /**
+     * 
+     * @param {PathPart} startingPathPart The path part that starts the path
+     * @param {CanvasState} canvasState 
+     * @param {string} pathId 
+     * @param {object} data Options, etc
+     */
     constructor (startingPathPart=null, canvasState=null, pathId=null, data={}) {
         super();
         this.startingPathPart = startingPathPart;
@@ -211,6 +218,7 @@ class Path extends shared.Path {
     }
 }
 
+// This is needed so that references to Paths in shared.js reference Paths with the client functionality defined here
 shared.Path = Path;
 
 class PathPart extends shared.PathPart {
@@ -282,6 +290,7 @@ class MapPoint extends shared.MapPoint {
     }
 }
 
+// This is needed so that references to MapPoints in shared.js references MapPoints with the client functionality defined here
 shared.MapPoint = MapPoint;
 
 /**

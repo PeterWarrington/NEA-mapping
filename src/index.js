@@ -10,6 +10,8 @@ var shared = require('./shared/sharedStructures.js').shared;
 
 var logger = new (require('./logging.js').Logger)();
 
+module.exports.logger = logger;
+
 // Using https://stackoverflow.com/a/29371929
 app.use(function (req, res, next) {
     var filename = "/" + path.basename(req.url);
@@ -18,6 +20,7 @@ app.use(function (req, res, next) {
 });
 
 app.get("/api/GetPaths", (req, res) => require("./api/getPaths.js").getPaths(shared, req, res));
+app.get("/api/GetTestOSMpoints", (req, res) => require("./api/getTestOSMpoints.js").getTestOSMpoints(shared, req, res));
 
 app.use(express.static('web', options));
 app.listen(port);

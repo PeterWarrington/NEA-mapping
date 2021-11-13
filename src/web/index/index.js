@@ -1,3 +1,5 @@
+testPointsMode = true;
+
 class CanvasState {
     /** The {CanvasRenderingContext2D} that is used on the canvas */
     ctx
@@ -18,6 +20,8 @@ class CanvasState {
     /** {int} representing how the map has been translated in y */
     yTranslation = 0
     touchDevice = false
+    /** An array of test nodes that should be drawn to screen, and nothing else, when draw() is called if not null */
+    testMapPoints = null
 
     constructor () {
         this.canvas = document.getElementById("mapCanvas");
@@ -128,8 +132,20 @@ class CanvasState {
         this.ctx.fillStyle = "#e6e6e6";
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
+        if (this.testMapPoints != null) {
+            // Halt drawing, call test draw function instead, typical drawing will not be executed
+            this.#testDraw();
+            return;
+        }
+
         this.paths.forEach(path => path.plotPoints(this));
         this.paths.forEach(path => path.plotLine(this));
+    }
+    
+    #testDraw() {
+        this.testMapPoints.forEach(mapPoint => {
+            mapPoint.drawPoint(this);
+        });
     }
 
     /**
@@ -300,6 +316,13 @@ function MapTest() {
     // Create canvas state
     canvasState = new CanvasState();
 
+    // Enter testPointsMode if flag set
+    if (testPointsMode) {
+        testPointsExecute(canvasState);
+        return;
+    }
+
+    // Import test nodes
     // Translate graph so does not overlap header
     canvasState.mapTranslate(15, getAbsoluteHeight(document.getElementById("header")) + 15);
 
@@ -319,6 +342,28 @@ function MapTest() {
         canvasState.draw();
     });
     httpReq.open("GET", "http://localhost/api/GetPaths");
+    httpReq.send();
+}
+
+function testPointsExecute(canvasState) {
+    // Initalise testMapPoints
+    canvasState.testMapPoints = [];
+
+    // Get test points from server
+    var httpReq = new XMLHttpRequest();
+    httpReq.addEventListener("load", () => {
+        // Request returns 2D array of MapPoints represented as simple objects, not as Path instances
+        // we need to convert this
+        mapPoint2DObjectArray = JSON.parse(httpReq.response);
+        mapPoint2DObjectArray.forEach((innerArray) => innerArray.forEach(mapPointObject => {
+            let mapPointToPush = MapPoint.mapPointFromObject(mapPointObject);
+            canvasState.testMapPoints.push(mapPointToPush);
+        }));
+            
+        // Draw points
+        canvasState.draw();
+    });
+    httpReq.open("GET", "http://localhost/api/GetTestOSMpoints");
     httpReq.send();
 }
 

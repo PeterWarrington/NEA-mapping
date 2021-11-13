@@ -7,13 +7,30 @@
         {
             "type": "pwa-node",
             "request": "launch",
-            "name": "Launch Program",
+            "name": "Launch index.js",
             "skipFiles": [
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}\\src\\index.js",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}\\src\\"
+        },
+        {
+            "type": "pwa-node",
+            "request": "launch",
+            "name": "Launch convertFromOSM.js",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\src\\convertFromOSM.js",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}\\src\\",
+            "runtimeArgs": [
+                "--max-old-space-size=8192"
+            ],
+            "args": [
+                "--cacheRead"
+            ]
         }
     ]
 }

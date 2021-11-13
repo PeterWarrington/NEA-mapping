@@ -3,3 +3,5 @@ docs/*.osm
 docs/research/OSM-data
 src/logs
 logs
+src/.*
+src/report*

@@ -138,8 +138,8 @@ class CanvasState {
             return;
         }
 
-        this.paths.forEach(path => path.plotPoints(this));
         this.paths.forEach(path => path.plotLine(this));
+        this.paths.forEach(path => path.plotPoints(this));
     }
     
     #testDraw() {

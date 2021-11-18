@@ -17,14 +17,18 @@ To convert OSM data into the format required by the client.
 * XML
 * Each road is defined in terms of a list of nodes
 * Road metadata is given using <tag> elements in the format
+
     `<tag k="key" v="value"/>`
 * Each road is a <relation> and has <tag>s with "type"="route" and "route"="road"
 * Each <relation> has an "id" attribute
 * Each <relation> has ways (the actual paths that make up the road) as <member>s. Each component way is defined in the format:
+
     `<member type="way" ref="idOfTheWay" role=""/>`
 * Each <way> contains component nodes expressed as <nd>s in the format:
+
     `<nd ref="idOfTheNode"/>`
 * Each <node> has node in the format:
+
     `<node id="25496583" lat="51.5173639" lon="-0.140043" version="1" changeset="203496" user="80n" uid="1238" visible="true" timestamp="2007-01-28T11:40:26Z"></node>`
 
 

@@ -14,7 +14,7 @@ shared.MapPoint = class MapPoint {
     /** Options for the point when drawing to screen */
     options = {
         pointDrawMethod: "text",
-        pointText: "📍",
+        pointText: "•",
         pointFont: "sans-serif",
         pointFontWidth: 16,
         pointFillStyle: "#878787",

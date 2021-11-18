@@ -14,12 +14,12 @@ shared.MapPoint = class MapPoint {
     /** Options for the point when drawing to screen */
     options = {
         pointDrawMethod: "text",
-        pointText: "📍",
+        pointText: "•",
         pointFont: "sans-serif",
         pointFontWidth: 16,
         pointFillStyle: "#878787",
-        pathDrawPointX: 5,
-        pathDrawPointY: 1
+        pathDrawPointX: 0,
+        pathDrawPointY: -5
     }
 
     /** {MapPoint[]} array containing the {MapPoint}s that this point connects to. Can be undefined. */

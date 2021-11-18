@@ -55,7 +55,7 @@ module.exports.Logger = class Logger {
     log(message, callback=this.#defaultLogCallback) {
         var stampedMessage = `${this.generateLogStamp()} ${message}`;
 
-        fs.appendFile(this.logfile, stampedMessage, err => {
+        fs.appendFile(this.logfile, stampedMessage + "\n", err => {
             if (err) {
                 callback(consts.ERROR, err);
             } else {

@@ -53,7 +53,7 @@ module.exports.Logger = class Logger {
      * @param {function(result, message)} callback Optional callback on log completion
      */
     log(message, callback=this.#defaultLogCallback) {
-        var stampedMessage = `${this.generateLogStamp()} ${message}\n`;
+        var stampedMessage = `${this.generateLogStamp()} ${message}`;
 
         fs.appendFile(this.logfile, stampedMessage + "\n", err => {
             if (err) {

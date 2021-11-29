@@ -1,5 +1,5 @@
-# Database structure
-This document will detail a potential model for my database, and the requirements for this.
+# Database/object structure
+This document will detail a potential model for my database, and the requirements for this. This will additionally be used to update my existing data structures.
 
 ## Requirements
 - Store map data
@@ -50,4 +50,24 @@ PathPartID
 PointID
     string
 NextPathPartID
+    string (nullable)
+
+### User data
+#### User
+UserID
     string
+UserName
+    string
+UserEmail
+    string
+UserPassword
+    string
+    Salted hash
+
+#### UserMapData
+UserID
+    string
+MapDataObject
+    string
+Params
+    object

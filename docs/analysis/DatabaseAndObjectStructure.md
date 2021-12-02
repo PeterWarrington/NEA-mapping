@@ -49,8 +49,10 @@ PathPartID
     string
 PointID
     string
-NextPathPartID
-    string (nullable)
+NextPathPartIDs
+    string[] (nullable)
+Metadata
+    object
 
 ### User data
 #### User

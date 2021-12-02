@@ -1,4 +1,4 @@
-testPointsMode = true;
+testPointsMode = false;
 
 class CanvasState {
     /** The {CanvasRenderingContext2D} that is used on the canvas */
@@ -11,8 +11,8 @@ class CanvasState {
     lastPageX = -1
     /** Indicates the last recorded mouse position relative to the page in Y */
     lastPageY = -1
-    /** The array of {Path}s to be drawn to screen */
-    paths = []
+    /** The database containing map points */
+    database
     /** A {int} multiplier to represent the zoom level */
     zoomLevel = 1
     /** {int} representing how the map has been translated in x */
@@ -138,8 +138,8 @@ class CanvasState {
             return;
         }
 
-        this.paths.forEach(path => path.plotLine(this));
-        this.paths.forEach(path => path.plotPoints(this));
+        this.database.getMapObjectsOfType("PATH").forEach(path => path.plotLine(this));
+        this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
     }
     
     #testDraw() {
@@ -164,21 +164,19 @@ class Path extends shared.Path {
 
     /**
      * 
-     * @param {PathPart} startingPathPart The path part that starts the path
+     * @param {string} startingPathPartID The ID of the path part that starts the path
      * @param {CanvasState} canvasState 
-     * @param {string} pathId 
      * @param {object} data Options, etc
      */
-    constructor (startingPathPart=null, canvasState=null, pathId=null, data={}) {
+    constructor (startingPathPartID=null, canvasState=null, data={}) {
         super();
-        this.startingPathPart = startingPathPart;
+        this.startingPathPartID = startingPathPartID;
         this.canvasState = canvasState;
         this.data = {...this.data, ...data};
-        this.pathId = pathId;
     }
 
     /**
-     * Plots line connecting points in this.startingPathPart to screen.
+     * Plots line by traversing tree.
      */
      plotLine(canvasState=canvasState) {
         if (canvasState == null) {
@@ -193,33 +191,34 @@ class Path extends shared.Path {
         canvasState.ctx.beginPath();
         
         // Initialize array containing the  initial PathParts to draw
-        let startingPathPartsToDraw = [this.startingPathPart];
+        let startingPathPartsToDraw = [database.db[this.startingPathPartID]];
 
         // Iterate through startingPathPartsToDraw
         for (let i = 0; i < startingPathPartsToDraw.length; i++) {
             const startingPathPart = startingPathPartsToDraw[i];
-            startingPathPart.point.canvasState = canvasState;
+            database.db[startingPathPart.pointID].canvasState = canvasState;
 
             // Move to the starting point
-            canvasState.ctx.moveTo(startingPathPart.point.pathPointDisplayX, 
-                startingPathPart.point.pathPointDisplayY);
+            canvasState.ctx.moveTo(database.db[startingPathPart.pointID].pathPointDisplayX, 
+                database.db[startingPathPart.pointID].pathPointDisplayY);
 
             // If we get to a branch, push the other branches to startingPathPartsToDraw to iterate through later
             let currentPathPart = startingPathPart;
-            while (currentPathPart.nextPathParts.length != 0) {
-                currentPathPart.point.canvasState = canvasState;
+            while (currentPathPart.nextPathPartIDs.length != 0) {
+                database.db[currentPathPart.pointID].canvasState = canvasState;
 
                 // Plot a line from the last plotted point to the point at currentPathPart
-                canvasState.ctx.lineTo(currentPathPart.point.pathPointDisplayX, 
-                    currentPathPart.point.pathPointDisplayY);
-                for (let j = 1; j < currentPathPart.nextPathParts.length; j++) {
-                    startingPathPartsToDraw.push(currentPathPart.nextPathParts[j]);
+                canvasState.ctx.lineTo(database.db[currentPathPart.pointID].pathPointDisplayX, 
+                    database.db[currentPathPart.pointID].pathPointDisplayY);
+                for (let j = 1; j < currentPathPart.nextPathPartIDs.length; j++) {
+                    startingPathPartsToDraw.push(database.db[currentPathPart.nextPathPartIds[j]]);
                 }
                 
                 // Advance pointer to next connecting point in the closest branch
-                currentPathPart = currentPathPart.nextPathParts[0];
+                currentPathPart = database.db[currentPathPart.nextPathPartIDs[0]];
             }
-            canvasState.ctx.lineTo(currentPathPart.point.pathPointDisplayX, currentPathPart.point.pathPointDisplayY);
+            canvasState.ctx.lineTo(database.db[currentPathPart.pointID].pathPointDisplayX, 
+                database.db[currentPathPart.pointID].pathPointDisplayY);
             
             // Draw line to canvas
             canvasState.ctx.stroke();
@@ -227,7 +226,7 @@ class Path extends shared.Path {
     }
 
     /**
-     * Plots markers for points in this.startingPoint
+     * Plots points contained in tree.
      */
     plotPoints(canvasState=canvasState) {
         this.getAllPointsOnPath().forEach(point => point.drawPoint(canvasState));
@@ -239,15 +238,15 @@ shared.Path = Path;
 
 class PathPart extends shared.PathPart {
     /**
-     * @param {Point} point The point referenced by this path part
-     * @param {PathPart[]} nextPathParts Array of next part(s) in the path
-     * @param {Object} data Object storing additional parameters (optional)
+     * @param {string} pointID The ID of the point referenced by this path part
+     * @param {string} nextPathPartIDs Array of IDs of the next part(s) in the path
      */
-     constructor (point=null, nextPathParts=[], data={}) {
+     constructor (pointID=null, nextPathPartIDs=[], metadata={}) {
         super();
-        this.point = point;
-        this.nextPathParts = nextPathParts;
-        this.data = data;
+        
+        this.pointID = pointID;
+        this.nextPathPartIDs = nextPathPartIDs;
+        this.metadata = metadata
     }
 }
 
@@ -260,13 +259,16 @@ class MapPoint extends shared.MapPoint {
      * Creates a point that can form part of a path and be displayed on a canvas.
      * @param {int} x Fixed x position of point in relation to others
      * @param {int} y Fixed y position of point in relation to others
-     * @param {MapPoint} pointsConnectingTo The sequential {MapPoint} that follows this one. Can be undefined.
      * @param {object} options Options for the point when drawing to screen
+     * @param {object} metadata Optional metadata
      */
-     constructor (x, y, options={}, pointsConnectingTo=undefined) {
+     constructor (x, y, options={}, metadata={}) {
         super();
+
         this.x = x;
         this.y = y;
+
+        this.metadata = metadata;
 
         this.options = {...this.options, ...options};
     }
@@ -326,22 +328,20 @@ function MapTest() {
     // Translate graph so does not overlap header
     canvasState.mapTranslate(15, getAbsoluteHeight(document.getElementById("header")) + 15);
 
-    // Get test points from server
+    // Get test db from server
     var httpReq = new XMLHttpRequest();
     httpReq.addEventListener("load", () => {
-        // Request returns array of paths represented as simple objects, not as Path instances
+        // Request returns db as uninstanciated object
         // we need to convert this
-        pathObjectArray = JSON.parse(httpReq.response);
-        pathObjectArray.forEach((pathObject) => {
-            let pathToPush = Path.pathFromObject(pathObject);
-            pathToPush.canvasState = canvasState;
-            canvasState.paths.push(pathToPush);
-        });
-            
-        // Draw points
+        simpleDB = JSON.parse(httpReq.response);
+        database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
+        
+        canvasState.database = database;
+
+        // Draw
         canvasState.draw();
     });
-    httpReq.open("GET", "http://localhost/api/GetPaths");
+    httpReq.open("GET", "http://localhost/api/GetTestDB");
     httpReq.send();
 }
 

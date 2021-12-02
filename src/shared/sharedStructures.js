@@ -5,11 +5,106 @@ try {
     module.exports.shared = shared;
 } catch {}
 
-shared.MapPoint = class MapPoint {
+/** A database model used to containerise map data using an ID system
+ * of the format [Type]_[UID]
+ * Contained map objects are accessed using database.db[id],
+ * map objects are added using database.addMapObject(mapObject).
+ */
+shared.MapDataObjectDB = class MapDataObjectDB {
+    /** Object, where key is the ID of the MapObject */
+    db = {}
+
+    /**
+     * Adds a map object to the database, generating a random ID.
+     * @param {MapDataObject} mapObject Map object to add
+     */
+    addMapObject(mapObject) {
+        let ID = "";
+
+        if (mapObject.ID != null) {
+            ID = mapObject.ID;
+        } else {
+            if (mapObject instanceof shared.MapPoint)
+                ID += "POINT";
+            else if (mapObject instanceof shared.PathPart)
+                ID += "PART";
+            else if (mapObject instanceof shared.Path)
+                ID += "PATH";
+            else
+                ID += "GENERIC";
+
+            ID += "_";
+
+            do {
+                // Generate random characters for ID https://stackoverflow.com/a/1349426
+                var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                var charactersLength = characters.length;
+                for ( var i = 0; i < 6; i++ ) {
+                    ID += characters.charAt(Math.floor(Math.random() * charactersLength));
+                }
+            } while (Object.keys(this.db).includes(ID)); // While to ensure unique IDs though very small chance of collision
+        }
+
+        // Add to DB
+        mapObject.ID = ID;
+        this.db[ID] = mapObject;
+
+        return mapObject;
+    }
+
+    getMapObjectsOfType(type) {
+        let mapObjects = [];
+        let objectIDs = Object.keys(this.db).filter(id => id.indexOf(type) == 0);
+        objectIDs.forEach((objectID) => mapObjects.push(this.db[objectID]));
+
+        return mapObjects;
+    }
+
+    /**
+     * Converts a un-instanciated object into a database.
+     * @param {*} object Un-instanciated object detailing a database
+     * @returns {MapDataObjectDB}
+     */
+    static MapDataObjectDBFromObject(object) {
+        var database = new shared.MapDataObjectDB();
+
+        var db = object.db;
+        var pointIDs = Object.keys(db).filter(id => id.indexOf("POINT") == 0);
+        var pathPartIDs = Object.keys(db).filter(id => id.indexOf("PART") == 0);
+        var pathIDs = Object.keys(db).filter(id => id.indexOf("PATH") == 0);
+
+        pointIDs.forEach(pointID => {
+            let point = shared.MapPoint.mapPointFromObject(db[pointID]);
+            database.addMapObject(point);
+        });
+
+        pathPartIDs.forEach(pathPartID => {
+            let pathPart = shared.PathPart.pathPartFromObject(db[pathPartID]);
+            database.addMapObject(pathPart);
+        });
+
+        pathIDs.forEach(pathID => {
+            let path = shared.Path.pathFromObject(db[pathID]);
+            database.addMapObject(path);
+        });
+
+        return database;
+    }
+}
+
+shared.MapDataObject = class MapDataObject {
+    /** String for the ID of the data object */
+    ID = null;
+}
+
+shared.MapPoint = class MapPoint extends shared.MapDataObject {
     /** Fixed x position of point in relation to others */
     x
     /** Fixed y position of point in relation to others */
     y
+
+    /** Additional metadata, e.g. place name */
+    metadata = {}
 
     /** Options for the point when drawing to screen */
     options = {
@@ -22,19 +117,20 @@ shared.MapPoint = class MapPoint {
         pathDrawPointY: -5
     }
 
-    /** {MapPoint[]} array containing the {MapPoint}s that this point connects to. Can be undefined. */
-    pointsConnectingTo
-
     /**
      * Creates a point that can form part of a path and be displayed on a canvas.
      * @param {int} x Fixed x position of point in relation to others
      * @param {int} y Fixed y position of point in relation to others
-     * @param {MapPoint} pointsConnectingTo The sequential {MapPoint} that follows this one. Can be undefined.
      * @param {object} options Options for the point when drawing to screen
+     * @param {object} metadata Optional metadata such as name
      */
-    constructor (x, y, options={}, pointsConnectingTo=undefined) {
+    constructor (x, y, options={}, metadata={}) {
+        super();
+
         this.x = x;
         this.y = y;
+
+        this.metadata = metadata;
 
         this.options = {...this.options, ...options};
     }
@@ -46,35 +142,34 @@ shared.MapPoint = class MapPoint {
      * @returns MapPoint
      */
     static mapPointFromObject(object) {
-        var mapPoint = new shared.MapPoint(null, null, null);
-        mapPoint.x = object.x;
-        mapPoint.y = object.y;
-        mapPoint.options = object.options;
+        var mapPoint = new shared.MapPoint(object.x, object.y, object.options, object.metadata);
+        mapPoint.ID = object.ID;
 
         return mapPoint;
     }
 }
 
 /**
- * Defines 2 connecting points as part of a path and what these connect to.
+ * Defines a "edge" between two nodes
  */
-shared.PathPart = class PathPart {
-    /** The {Point} referenced by this path part */
-    point
-    /** The {Point} the first point connects to */
-    nextPathParts = []
-    /** {String} used to identify this {PathPart} */
-    data
+shared.PathPart = class PathPart extends shared.MapDataObject {
+    /** The id of the {Point} referenced by this path part */
+    pointID
+    /** The IDs of the path parts this connects to */
+    nextPathPartIDs = []
+    /** Optional metadata */
+    metadata = {}
 
     /**
-     * @param {Point} point The point referenced by this path part
-     * @param {PathPart[]} nextPathParts Array of next part(s) in the path
-     * @param {Object} data Object storing additional parameters (optional)
+     * @param {string} pointID The ID of the point referenced by this path part
+     * @param {string[]} nextPathPartIDs Array of next part IDs in the path
      */
-    constructor (point=null, nextPathParts=[], data={}) {
-        this.point = point;
-        this.nextPathParts = nextPathParts;
-        this.data = data;
+    constructor (pointID=null, nextPathPartIDs=[], metadata={}) {
+        super();
+        
+        this.pointID = pointID;
+        this.nextPathPartIDs = nextPathPartIDs;
+        this.metadata = metadata
     }
 
     /**
@@ -84,29 +179,23 @@ shared.PathPart = class PathPart {
      * @returns PathPart
      */
     static pathPartFromObject (object) {
-        var pathPart = new shared.PathPart();
-
-        pathPart.point = shared.MapPoint.mapPointFromObject(object.point);
-        pathPart.nextPathParts = [];
-        object.nextPathParts.forEach((pathPartObject) => {
-            var pathPartToAdd = shared.PathPart.pathPartFromObject(pathPartObject);
-            pathPart.nextPathParts.push(pathPartToAdd);
-        });
-        pathPart.data = object.data;
-
+        var pathPart = new shared.PathPart(object.pointID, object.nextPathPartIDs, object.metadata);
+        pathPart.ID = object.ID;
         return pathPart;
     }
 
-    connectingTo(pointConnectingTo) {
-        var connectingPathPart = new PathPart(pointConnectingTo, []);
-        this.nextPathParts.push(connectingPathPart);
-        return connectingPathPart;
+    connectingTo(IDofPointConnectingTo, database) {
+        var connectingPathPart = new PathPart(IDofPointConnectingTo);
+        var pathPart = database.addMapObject(IDofPointConnectingTo);
+        this.nextPathPartIDs.push(pathPart.ID);
+
+        return pathPart;
     }
 }
 
-shared.Path = class Path {
-    /** The {PathPart} object that begins the path */
-    startingPathPart
+shared.Path = class Path extends shared.MapDataObject {
+    /** The {PathPart} object ID that begins the path */
+    startingPathPartID
     /** Data, including options for the path when drawing to screen */
     data = {
         pathFillStyle: "#e8cc4a",
@@ -120,13 +209,14 @@ shared.Path = class Path {
 
     /**
      * Creates a path using a starting points
-     * @param {PathPart} startingPathPart The {PathPart} object that begins the path
+     * @param {string} startingPathPartID The ID of {PathPart} object that begins the path
      * @param {object} data Data, including options for the path when drawing to screen
      */
-    constructor (startingPathPart, pathId, data={}) {
-        this.startingPathPart = startingPathPart;
+    constructor (startingPathPartID, data={}) {
+        super();
+
+        this.startingPathPartID = startingPathPartID;
         this.data = {...this.data, ...data};
-        this.pathId = pathId;
     }
 
     /**
@@ -136,11 +226,8 @@ shared.Path = class Path {
      * @returns Path
      */
     static pathFromObject(object) {
-        var path = new shared.Path(null, null);
-
-        path.startingPathPart = shared.PathPart.pathPartFromObject(object.startingPathPart);
-        path.data = object.data;
-        path.pathId = object.pathId;
+        var path = new shared.Path(object.startingPathPartID, object.data);
+        path.ID = object.ID;
 
         return path;
     }
@@ -149,13 +236,13 @@ shared.Path = class Path {
      * Converts a tree of connecting points to a array of all points (for drawing individual points unconnectedly).
      * @returns {MapPoint[]} 
      */
-    getAllPointsOnPath(currentPathPart=this.startingPathPart, pathArray=[]) {
-        if (currentPathPart.nextPathParts != null && currentPathPart.nextPathParts.length != 0) {
-            for (var i=0; i < currentPathPart.nextPathParts.length; i++) {
+    getAllPointsOnPath(database, currentPathPartID=this.startingPathPartID, pathIDArray=[]) {
+        if (currentPathPart.nextPathPartIDs != null && database.db[currentPathPartID].nextPathPartIDs.length != 0) {
+            for (var i=0; i < database.db[currentPathPartID].nextPathPartIDs.length; i++) {
                 if (i==0)
-                    pathArray.push(currentPathPart.point);
-                pathArray.push(currentPathPart.nextPathParts[i].point);
-                this.getAllPointsOnPath(currentPathPart=currentPathPart.nextPathParts[i], pathArray);
+                    pathArray.push(database.db[currentPathPartID].pointID);
+                pathArray.push(database.db[database.db[currentPathPartID].nextPathPartIDs[i]].pointID);
+                this.getAllPointsOnPath(database, currentPathPartID=database.db[currentPathPartID].nextPathPartIDs[i], pathIDArray);
             }
         }
         return pathArray;
@@ -164,26 +251,32 @@ shared.Path = class Path {
     /**
      * Converts a sequential array of points to a path
      * @param {MapPoint[]} pathArray A sequential array of {MapPoint}s
-     * @returns {Path} The {MapPoint} object that starts the path
+     * @returns {Path} {Path} of connecting points
      */ 
-    static connectSequentialPoints(pathArray) {
-        // Copy pathArray
-        var pathArrayCopy = Object.values(Object.assign({}, pathArray)).reverse();
+    static connectSequentialPoints(pathArray, database) {
+        var pathIdArray = [];
+        pathArray.forEach(point => {
+            database.addMapObject(point);
+            pathIdArray.push(point.ID);
+        });
+
         // Set up path parts
         var startingPathPart;
         var previousPathPart;
 
         for (let i = 0; i < pathArray.length; i++) {
-            var currentPathPart = new PathPart(pathArray[i], []);
+            var currentPathPart = new shared.PathPart(pathIdArray[i]);
+            
+            database.addMapObject(currentPathPart);
 
             if (i == 0)
                 startingPathPart = currentPathPart;
             if (previousPathPart != undefined)
-                previousPathPart.nextPathParts = [currentPathPart];
+                previousPathPart.nextPathPartIDs = [currentPathPart.ID];
                 
             previousPathPart = currentPathPart;
         }
-        var newPath = new Path(startingPathPart, "path");
+        var newPath = new shared.Path(startingPathPart.ID);
         return newPath;
     }
 }

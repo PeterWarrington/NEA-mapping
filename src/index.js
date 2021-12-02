@@ -19,7 +19,7 @@ app.use(function (req, res, next) {
     next();
 });
 
-app.get("/api/GetPaths", (req, res) => require("./api/getPaths.js").getPaths(shared, req, res));
+app.get("/api/GetTestDB", (req, res) => require("./api/getTestDB.js").getTestDB(shared, req, res));
 app.get("/api/GetTestOSMpoints", (req, res) => require("./api/getTestOSMpoints.js").getTestOSMpoints(shared, req, res));
 
 app.use(express.static('web', options));

@@ -1,4 +1,5 @@
-testPointsMode = false;
+testPointsMode = true;
+canvasState = undefined;
 
 class CanvasState {
     /** The {CanvasRenderingContext2D} that is used on the canvas */
@@ -102,8 +103,8 @@ class CanvasState {
     }
 
     mapTranslate(translateX, translateY) {
-        this.xTranslation += translateX;
-        this.yTranslation += translateY;
+        this.xTranslation += (translateX / this.zoomLevel);
+        this.yTranslation += (translateY / this.zoomLevel);
     }
 
     /**
@@ -275,12 +276,12 @@ class MapPoint extends shared.MapPoint {
 
     /** Gets the x position relative to the canvas */
     get displayedX() {
-        return (this.x * canvasState.zoomLevel) + canvasState.xTranslation;
+        return (this.x + canvasState.xTranslation) * canvasState.zoomLevel;
     }
 
     /** Gets the y position relative to the canvas */
     get displayedY() {
-        return (this.y * canvasState.zoomLevel) + canvasState.yTranslation;
+        return (this.y + canvasState.yTranslation) * canvasState.zoomLevel;
     }
 
     /** Gets the x position of where the path should be drawn relative to canvas */

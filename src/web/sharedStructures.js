@@ -1,1 +1,1 @@
-../shared/sharedStructures.js
+c:/Users/Peter Warrington/OneDrive - Hills Road Sixth Form College/Computing/NEA/src/shared/sharedStructures.js

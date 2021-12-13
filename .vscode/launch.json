@@ -27,9 +27,6 @@
             "cwd": "${workspaceFolder}\\src\\",
             "runtimeArgs": [
                 "--max-old-space-size=8192"
-            ],
-            "args": [
-                "--cacheRead"
             ]
         }
     ]

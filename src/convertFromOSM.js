@@ -35,21 +35,9 @@ fs.readFile('../docs/cambridgeshire-latest.osm', 'utf8' , (err, data) => {
 
   var cachedNodedataAvailable = process.argv.includes("--cacheRead") && fs.existsSync(".osmToJS_nodes.json");
 
-  var roadRelations = [];
   var ways = [];
   var nodes = [];
   osmData.elements[0].elements.forEach(element => {
-    if (element.name == "relation") {
-      // Only add those relations that are roads
-      element.elements.forEach(relationElement => {
-        if (relationElement.name == "tag" && 
-            relationElement.attributes.k == "route" &&
-            relationElement.attributes.v == "road") {
-              roadRelations.push(element);
-            }
-      });
-    }
-
     if (element.name == "node" && !cachedNodedataAvailable) nodes.push(element);
     if (element.name == "way") ways.push(element);
   });
@@ -69,24 +57,9 @@ fs.readFile('../docs/cambridgeshire-latest.osm', 'utf8' , (err, data) => {
         return console.log(err);
     }
     console.log("Background process: Nodes have been cached");
-  }); 
-
-  // Extract way IDs of roads
-  console.log("Extracting way IDs of roads...");
-
-  var roadWayIds = [];
-  roadRelations.forEach(roadRelation => {
-    if (roadRelation.elements != undefined)
-      roadRelation.elements.forEach(element => {
-        if (element.name == "member" && element.attributes.type == "way") {
-          roadWayIds.push(element.attributes.ref);
-        }
-      });
   });
 
-  console.log("\tWay ID extraction complete.");
-
-  // Extract roadWays referred to by each roadWayId
+  // Extract ways with <tag k="highway" ...>
   
   var roadWays = [];
 
@@ -96,9 +69,11 @@ fs.readFile('../docs/cambridgeshire-latest.osm', 'utf8' , (err, data) => {
     roadWays = JSON.parse(fs.readFileSync(".osmToJS_roadWays.json"));
     console.log("\tCached roadway read complete.")
   } else {
-    console.log("Extracting ways matching extracted way IDs...");
+    console.log("Extracting ways with <tag k=\"highway\" ... > ...");
     ways.forEach(way => {
-      if (roadWayIds.includes(way.attributes.id)) roadWays.push(way);
+      way.elements.forEach(element => {
+        if (element.name == "tag" && element.attributes.k == "highway") roadWays.push(way);
+      });
     });
     console.log("\tRoad way extraction complete.");
   }

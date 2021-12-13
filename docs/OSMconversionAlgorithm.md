@@ -19,11 +19,7 @@ To convert OSM data into the format required by the client.
 * Road metadata is given using <tag> elements in the format
 
     `<tag k="key" v="value"/>`
-* Each road is a <relation> and has <tag>s with "type"="route" and "route"="road"
-* Each <relation> has an "id" attribute
-* Each <relation> has ways (the actual paths that make up the road) as <member>s. Each component way is defined in the format:
-
-    `<member type="way" ref="idOfTheWay" role=""/>`
+* Each road is a <way> and has <tag>s with k="highway"
 * Each <way> contains component nodes expressed as <nd>s in the format:
 
     `<nd ref="idOfTheNode"/>`
@@ -35,8 +31,7 @@ To convert OSM data into the format required by the client.
 ## Objectives
 
 * Convert OSM data from XML to JSON
-* Find only those relations that make up roads
-* For each of these relations, find the component ways
+* Find ways with "highway" tag
 * For each of these ways, find the component nodes
 * For each of these nodes, convert the latitude and longitude to x,y coordinates
 * Convert each node to a MapPoint

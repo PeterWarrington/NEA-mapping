@@ -37,10 +37,12 @@ fs.readFile('../docs/cambridgeshire-latest.osm', 'utf8' , (err, data) => {
 
   var ways = [];
   var nodes = [];
-  osmData.elements[0].elements.forEach(element => {
+
+  for (let i = 0; i < osmData.elements[0].elements.length; i++) {
+    const element = osmData.elements[0].elements[i];
     if (element.name == "node" && !cachedNodedataAvailable) nodes.push(element);
     if (element.name == "way") ways.push(element);
-  });
+  }
 
   if (cachedNodedataAvailable) {
     console.log("\tReading cached node data:");
@@ -70,11 +72,14 @@ fs.readFile('../docs/cambridgeshire-latest.osm', 'utf8' , (err, data) => {
     console.log("\tCached roadway read complete.")
   } else {
     console.log("Extracting ways with <tag k=\"highway\" ... > ...");
-    ways.forEach(way => {
-      way.elements.forEach(element => {
+    for (let w = 0; w < ways.length; w++) {
+      const way = ways[w];
+      for (let e = 0; e < way.elements.length; e++) {
+        const element = way.elements[e];
         if (element.name == "tag" && element.attributes.k == "highway") roadWays.push(way);
-      });
-    });
+      }
+    }
+
     console.log("\tRoad way extraction complete.");
   }
 
@@ -98,37 +103,43 @@ fs.readFile('../docs/cambridgeshire-latest.osm', 'utf8' , (err, data) => {
   } else {
     console.log("Extracting nodes for each road way...");
 
-    roadWays.forEach(roadWay => {
+    for (let w = 0; w < roadWays.length; w++) {
+      console.log(w);
+      
+      var mapPoints2Darray = []
+      const roadWay = roadWays[w];
+      
       // Extract node references to add
       var nodeRefsOfWay = [];
-      roadWay.elements.forEach(element => {
+      for (let e = 0; e < roadWay.elements.length; e++) {
+        const element = roadWay.elements[e];
         if (element.name == "nd") nodeRefsOfWay.push(element.attributes.ref);
-      });
+      }
 
       // Extract nodes from node references to add
       var mapPointsOfWay = [];
-      nodes.forEach(node => {
+      for (let n = 0; n < nodes.length; n++) {
+        const node = nodes[n];
         if (nodeRefsOfWay.includes(node.attributes.id)) {
           var mapPoint = convertNodeToMapPoint(node);
           mapPointsOfWay.push(mapPoint);
-        } else
-          return;
-      });
+        }
+      }
 
       mapPoints2Darray.push(mapPointsOfWay);
-    });
+    } 
 
     console.log("\tRoad node extraction complete.");
-  }
 
-  // Cache mapPoints2DArray
-  if (!process.argv.includes("--noCacheWrite") && !cachedMapPoints2DAvailable)
-  fs.writeFile(".osmToJS_mapPoints2D.json", JSON.stringify(mapPoints2Darray), function(err) {
-    if(err) {
-        return console.log(err);
-    }
-    console.log("Background process: Map points [2D] have been cached");
-  }); 
+    // Cache mapPoints2DArray
+    if (!process.argv.includes("--noCacheWrite") && !cachedMapPoints2DAvailable)
+    fs.writeFile(".osmToJS_mapPoints2D.json", JSON.stringify(mapPoints2Darray), function(err) {
+      if(err) {
+          return console.log(err);
+      }
+      console.log("Background process: Map points [2D] have been cached");
+    }); 
+  }
 
   // TODO: Convert to Paths and PathParts
 

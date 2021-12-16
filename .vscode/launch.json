@@ -29,6 +29,21 @@
                 "--max-old-space-size=16384",
                 "--expose-gc"
             ]
+        },
+        {
+            "type": "pwa-node",
+            "request": "launch",
+            "name": "Launch ThreadedConvertFromOSM.js",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\src\\does_not_work_or_rejected\\threadedOSMconvert\\ThreadedConvertFromOSM.js",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}\\src\\",
+            "runtimeArgs": [
+                "--max-old-space-size=16384",
+                "--expose-gc"
+            ]
         }
     ]
 }

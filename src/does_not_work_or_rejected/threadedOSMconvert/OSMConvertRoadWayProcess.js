@@ -1,5 +1,5 @@
 // Executed by ThreadedConvertFromOSM
-var shared = require('./shared/sharedStructures.js').shared;
+var shared = require(process.cwd() + '/shared/sharedStructures.js').shared;
 
 var lowerBound;
 var upperBound;

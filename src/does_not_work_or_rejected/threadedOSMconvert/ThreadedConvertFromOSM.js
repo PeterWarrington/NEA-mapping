@@ -5,7 +5,7 @@
 const fs = require('fs')
 const child_process = require('child_process');
 var convert = require('xml-js');
-var shared = require('./shared/sharedStructures.js').shared;
+var shared = require(process.cwd() + '/shared/sharedStructures.js').shared;
 
 console.log("Beginning OSM file read...");
 fs.readFile('../docs/cambridgeshire-latest.osm', 'utf8' , (err, data) => {

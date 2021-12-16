@@ -116,7 +116,7 @@ fs.readFile('../docs/cambridgeshire-latest.osm', 'utf8' , (err, data) => {
       lowerBound = (roadWays.length / processN) * i;
       upperBound = lowerBound + (roadWays.length / processN);
 
-      childProcess = child_process.fork("OSMConvertRoadWayProcess.js", {execArgv: ['--max-old-space-size=8192']});
+      childProcess = child_process.fork(process.cwd() + "\\does_not_work_or_rejected\\threadedOSMconvert\\OSMConvertRoadWayProcess.js", {execArgv: ['--max-old-space-size=8192']});
 
       childProcess.send({lowerBound: lowerBound, upperBound: upperBound});
 

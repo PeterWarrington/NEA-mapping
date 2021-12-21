@@ -35,14 +35,12 @@ shared.MapDataObjectDB = class MapDataObjectDB {
 
             ID += "_";
 
-            do {
-                // Generate random characters for ID https://stackoverflow.com/a/1349426
-                var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                var charactersLength = characters.length;
-                for ( var i = 0; i < 6; i++ ) {
-                    ID += characters.charAt(Math.floor(Math.random() * charactersLength));
-                }
-            } while (Object.keys(this.db).includes(ID)); // While to ensure unique IDs though very small chance of collision
+            // Generate random characters for ID https://stackoverflow.com/a/1349426
+            var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            var charactersLength = characters.length;
+            for ( var i = 0; i < 6; i++ ) {
+                ID += characters.charAt(Math.floor(Math.random() * charactersLength));
+            }
         }
 
         // Add to DB
@@ -75,6 +73,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
 
         pointIDs.forEach(pointID => {
             let point = shared.MapPoint.mapPointFromObject(db[pointID]);
+            point.options = new MapPoint().options; // Strip options, replace with default
             database.addMapObject(point);
         });
 
@@ -95,6 +94,8 @@ shared.MapDataObjectDB = class MapDataObjectDB {
 shared.MapDataObject = class MapDataObject {
     /** String for the ID of the data object */
     ID = null;
+    /** Additional metadata, e.g. place name */
+    metadata = {}
 }
 
 shared.MapPoint = class MapPoint extends shared.MapDataObject {
@@ -103,18 +104,15 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
     /** Fixed y position of point in relation to others */
     y
 
-    /** Additional metadata, e.g. place name */
-    metadata = {}
-
     /** Options for the point when drawing to screen */
     options = {
-        pointDrawMethod: "text",
+        pointDrawMethod: "none",
         pointText: "•",
         pointFont: "sans-serif",
         pointFontWidth: 16,
         pointFillStyle: "#878787",
-        pathDrawPointX: 0,
-        pathDrawPointY: -5
+        pathDrawPointX: 3,
+        pathDrawPointY: -6
     }
 
     /**
@@ -157,8 +155,6 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
     pointID
     /** The IDs of the path parts this connects to */
     nextPathPartIDs = []
-    /** Optional metadata */
-    metadata = {}
 
     /**
      * @param {string} pointID The ID of the point referenced by this path part
@@ -255,10 +251,12 @@ shared.Path = class Path extends shared.MapDataObject {
      */ 
     static connectSequentialPoints(pathArray, database) {
         var pathIdArray = [];
-        pathArray.forEach(point => {
+        
+        for (let i = 0; i < pathArray.length; i++) {
+            const point = pathArray[i];
             database.addMapObject(point);
             pathIdArray.push(point.ID);
-        });
+        }
 
         // Set up path parts
         var startingPathPart;

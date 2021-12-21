@@ -6,11 +6,11 @@ fs = require('fs');
  * @param {*} req 
  * @param {*} res 
  */
- module.exports.getTestOSMpoints = function (shared, req, res) {
+ module.exports.getDBfromFile = function (shared, req, res) {
     // Read file
-    fs.readFile('.osmToJS_mapPoints2D.json', 'utf8' , (err, data) => {
+    fs.readFile('db.json', 'utf8' , (err, data) => {
         if (err) {
-            const error='FILE_READ_ERROR (getTestOSMpoints)';
+            const error='FILE_READ_ERROR (getDBfromFile)';
             res.status(500).send(error);
             module.exports.Logger.log(error + "\n" + err.toString());
             return;

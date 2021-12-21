@@ -1,4 +1,4 @@
-testPointsMode = true;
+testPointsMode = false;
 canvasState = undefined;
 
 class CanvasState {
@@ -303,9 +303,11 @@ class MapPoint extends shared.MapPoint {
             return;
         }
 
-        canvasState.ctx.fillStyle = this.options.pointFillStyle;
-        canvasState.ctx.font = `${this.options.pointFontWidth}px ${this.options.pointFont}`;
-        canvasState.ctx.fillText(this.options.pointText, this.displayedX, this.displayedY);
+        if (this.options.pointDrawMethod == "text") {
+            canvasState.ctx.fillStyle = this.options.pointFillStyle;
+            canvasState.ctx.font = `${this.options.pointFontWidth}px ${this.options.pointFont}`;
+            canvasState.ctx.fillText(this.options.pointText, this.displayedX, this.displayedY);
+        }
     }
 }
 
@@ -329,6 +331,12 @@ function MapTest() {
     // Translate graph so does not overlap header
     canvasState.mapTranslate(15, getAbsoluteHeight(document.getElementById("header")) + 15);
 
+    // Display loading message.
+    canvasState.updateCanvasWidth();
+    canvasState.ctx.fillStyle = "#878787";
+    canvasState.ctx.font = `20pt sans-serif`;
+    canvasState.ctx.fillText("Loading map data...", 70, 110);
+
     // Get test db from server
     var httpReq = new XMLHttpRequest();
     httpReq.addEventListener("load", () => {
@@ -342,7 +350,7 @@ function MapTest() {
         // Draw
         canvasState.draw();
     });
-    httpReq.open("GET", "http://localhost/api/GetTestDB");
+    httpReq.open("GET", "http://localhost/api/GetDBfromFile");
     httpReq.send();
 }
 

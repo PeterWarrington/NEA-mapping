@@ -21,6 +21,7 @@ app.use(function (req, res, next) {
 
 app.get("/api/GetTestDB", (req, res) => require("./api/getTestDB.js").getTestDB(shared, req, res));
 app.get("/api/GetTestOSMpoints", (req, res) => require("./api/getTestOSMpoints.js").getTestOSMpoints(shared, req, res));
+app.get("/api/GetDBfromFile", (req, res) => require("./api/getDBfromFile.js").getDBfromFile(shared, req, res));
 
 app.use(express.static('web', options));
 app.listen(port);

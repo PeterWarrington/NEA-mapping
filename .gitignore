@@ -5,3 +5,4 @@ src/logs
 logs
 src/.*
 src/report*
+*.cpuprofile

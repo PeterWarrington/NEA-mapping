@@ -13,7 +13,10 @@
             ],
             "program": "${workspaceFolder}\\src\\index.js",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}\\src\\"
+            "cwd": "${workspaceFolder}\\src\\",
+            "runtimeArgs": [
+                "--max-old-space-size=2048"
+            ]
         },
         {
             "type": "pwa-node",

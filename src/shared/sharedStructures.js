@@ -13,6 +13,12 @@ try {
 shared.MapDataObjectDB = class MapDataObjectDB {
     /** Object, where key is the ID of the MapObject */
     db = {}
+    /** Caches point IDs */
+    pointIDs = []
+    /** Caches path IDs */
+    pathIDs = []
+    /** Caches part IDs */
+    partIDs = []
 
     /**
      * Adds a map object to the database, generating a random ID.
@@ -47,6 +53,11 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         mapObject.ID = ID;
         this.db[ID] = mapObject;
 
+        // Cache ID
+        if (ID.indexOf("POINT") == 0) this.pointIDs.push(ID);
+        if (ID.indexOf("PART") == 0) this.partIDs.push(ID);
+        if (ID.indexOf("PATH") == 0) this.pathIDs.push(ID);
+
         return mapObject;
     }
 
@@ -73,7 +84,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
 
         pointIDs.forEach(pointID => {
             let point = shared.MapPoint.mapPointFromObject(db[pointID]);
-            point.options = new MapPoint().options; // Strip options, replace with default
+            point.options = new shared.MapPoint().options; // Strip options, replace with default
             database.addMapObject(point);
         });
 
@@ -142,6 +153,7 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
     static mapPointFromObject(object) {
         var mapPoint = new shared.MapPoint(object.x, object.y, object.options, object.metadata);
         mapPoint.ID = object.ID;
+        mapPoint.metadata = object.metadata;
 
         return mapPoint;
     }
@@ -177,7 +189,18 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
     static pathPartFromObject (object) {
         var pathPart = new shared.PathPart(object.pointID, object.nextPathPartIDs, object.metadata);
         pathPart.ID = object.ID;
+        pathPart.metadata = object.metadata;
         return pathPart;
+    }
+
+    static getPartByStepsAway(database, pathPart, steps) {
+        // Base case 
+        if (steps == 0 || pathPart.nextPathPartIDs.length == 0)
+            return pathPart;
+        else {
+            var nextPathPart = database.db[pathPart.nextPathPartIDs[0]];
+            return this.getPartByStepsAway(database, nextPathPart, steps-1);
+        }
     }
 
     connectingTo(IDofPointConnectingTo, database) {
@@ -224,6 +247,7 @@ shared.Path = class Path extends shared.MapDataObject {
     static pathFromObject(object) {
         var path = new shared.Path(object.startingPathPartID, object.data);
         path.ID = object.ID;
+        path.metadata = object.metadata;
 
         return path;
     }
@@ -242,6 +266,17 @@ shared.Path = class Path extends shared.MapDataObject {
             }
         }
         return pathArray;
+    }
+
+    copyPathContentsToDB(fromDB, toDB, currentPathPartID=this.startingPathPartID) {
+        var currentPathPart = fromDB.db[currentPathPartID];
+
+        toDB.addMapObject(currentPathPart);
+        toDB.addMapObject(fromDB.db[fromDB.db[currentPathPartID].pointID]);
+
+        if (currentPathPart.nextPathPartIDs != null && currentPathPart.nextPathPartIDs.length != 0)
+            for (var i=0; i < currentPathPart.nextPathPartIDs.length; i++)
+                this.copyPathContentsToDB(fromDB, toDB, currentPathPartID=currentPathPart.nextPathPartIDs[i]);
     }
 
     /**

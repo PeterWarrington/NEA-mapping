@@ -139,8 +139,11 @@ class CanvasState {
             return;
         }
 
-        this.database.getMapObjectsOfType("PATH").forEach(path => path.plotLine(this));
-        this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
+        for (let i = 0; i < this.database.pathIDs.length; i++) {
+            const pathID = this.database.pathIDs[i];
+            this.database.db[pathID].plotLine(this);
+        }
+        // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
     }
     
     #testDraw() {
@@ -169,10 +172,9 @@ class Path extends shared.Path {
      * @param {CanvasState} canvasState 
      * @param {object} data Options, etc
      */
-    constructor (startingPathPartID=null, canvasState=null, data={}) {
+    constructor (startingPathPartID=null, data={}) {
         super();
         this.startingPathPartID = startingPathPartID;
-        this.canvasState = canvasState;
         this.data = {...this.data, ...data};
     }
 
@@ -194,6 +196,8 @@ class Path extends shared.Path {
         // Initialize array containing the  initial PathParts to draw
         let startingPathPartsToDraw = [database.db[this.startingPathPartID]];
 
+        const skipOneInEveryNo = 1;
+
         // Iterate through startingPathPartsToDraw
         for (let i = 0; i < startingPathPartsToDraw.length; i++) {
             const startingPathPart = startingPathPartsToDraw[i];
@@ -205,6 +209,7 @@ class Path extends shared.Path {
 
             // If we get to a branch, push the other branches to startingPathPartsToDraw to iterate through later
             let currentPathPart = startingPathPart;
+            var counter = 0;
             while (currentPathPart.nextPathPartIDs.length != 0) {
                 database.db[currentPathPart.pointID].canvasState = canvasState;
 
@@ -216,7 +221,12 @@ class Path extends shared.Path {
                 }
                 
                 // Advance pointer to next connecting point in the closest branch
-                currentPathPart = database.db[currentPathPart.nextPathPartIDs[0]];
+                // Or if skipping, skip to the one after that if not at the end of the path
+                let nextPointer = shared.PathPart.getPartByStepsAway(database, currentPathPart, 3);
+
+                currentPathPart = nextPointer;
+
+                counter++;
             }
             canvasState.ctx.lineTo(database.db[currentPathPart.pointID].pathPointDisplayX, 
                 database.db[currentPathPart.pointID].pathPointDisplayY);
@@ -331,6 +341,11 @@ function MapTest() {
     // Translate graph so does not overlap header
     canvasState.mapTranslate(15, getAbsoluteHeight(document.getElementById("header")) + 15);
 
+    // Drawing test overrides
+    canvasState.xTranslation =  -5474.999999999993;
+    canvasState.yTranslation = -3806.499999999995;
+    canvasState.zoomLevel =  0.5000000000000001;
+
     // Display loading message.
     canvasState.updateCanvasWidth();
     canvasState.ctx.fillStyle = "#878787";
@@ -350,7 +365,7 @@ function MapTest() {
         // Draw
         canvasState.draw();
     });
-    httpReq.open("GET", "http://localhost/api/GetDBfromFile");
+    httpReq.open("GET", "http://localhost/api/GetDBfromQuery");
     httpReq.send();
 }
 
@@ -372,7 +387,7 @@ function testPointsExecute(canvasState) {
         // Draw points
         canvasState.draw();
     });
-    httpReq.open("GET", "http://localhost/api/GetTestOSMpoints");
+    httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22]`);
     httpReq.send();
 }
 

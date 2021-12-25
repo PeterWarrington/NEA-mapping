@@ -134,6 +134,29 @@ for (let w = 0; w < wLength; w++) {
       path.metadata[element.attributes.k] = element.attributes.v;
   }
 
+  switch (path.metadata.highway) {
+    case "motorway":
+      path.data.pathFillStyle = "#3474eb";
+      break;
+    case "motorway_link":
+      path.data.pathFillStyle = "#0000ff";
+      break;
+    case "trunk":
+      path.data.pathFillStyle = "#292929";
+      break;
+    case "trunk_link":
+      path.data.pathFillStyle = "#000000";
+      break;
+    case "primary":
+      path.data.pathFillStyle = "#2bb354";
+      break;
+    case "primary_link":
+      path.data.pathFillStyle = "#00ff00";
+      break;
+    default:
+      break;
+  }
+
   mapDatabase.addMapObject(path);
 
   process.stdout.cursorTo(0);

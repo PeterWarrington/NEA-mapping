@@ -212,17 +212,27 @@ class Path extends shared.Path {
             var counter = 0;
             while (currentPathPart.nextPathPartIDs.length != 0) {
                 database.db[currentPathPart.pointID].canvasState = canvasState;
-
-                // Plot a line from the last plotted point to the point at currentPathPart
-                canvasState.ctx.lineTo(database.db[currentPathPart.pointID].pathPointDisplayX, 
-                    database.db[currentPathPart.pointID].pathPointDisplayY);
-                for (let j = 1; j < currentPathPart.nextPathPartIDs.length; j++) {
-                    startingPathPartsToDraw.push(database.db[currentPathPart.nextPathPartIds[j]]);
-                }
                 
                 // Advance pointer to next connecting point in the closest branch
                 // Or if skipping, skip to the one after that if not at the end of the path
                 let nextPointer = shared.PathPart.getPartByStepsAway(database, currentPathPart, 3);
+
+                // Draw point if this point is on screen, or the next point is on screen
+                if (
+                    areCoordsOnScreen(database.db[currentPathPart.pointID].pathPointDisplayX, 
+                    database.db[currentPathPart.pointID].pathPointDisplayY, canvasState)
+                        ||
+                    areCoordsOnScreen(database.db[nextPointer.pointID].pathPointDisplayX, 
+                        database.db[nextPointer.pointID].pathPointDisplayY, canvasState)
+                ) {
+                    // Plot a line from the last plotted point to the point at currentPathPart
+                    canvasState.ctx.lineTo(database.db[currentPathPart.pointID].pathPointDisplayX, 
+                        database.db[currentPathPart.pointID].pathPointDisplayY);
+                }
+                
+                for (let j = 1; j < currentPathPart.nextPathPartIDs.length; j++) {
+                    startingPathPartsToDraw.push(database.db[currentPathPart.nextPathPartIds[j]]);
+                }
 
                 currentPathPart = nextPointer;
 
@@ -389,6 +399,11 @@ function testPointsExecute(canvasState) {
     });
     httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22]`);
     httpReq.send();
+}
+
+function areCoordsOnScreen(x, y, canvasState) {
+    return (x + canvasState.xTranslation) > 0 && (x + canvasState.xTranslation) < canvasState.canvas.width
+            && (y + canvasState.yTranslation) > 0 && (y + canvasState.yTranslation) < canvasState.canvas.height;
 }
 
 // Once the page has fully loaded, call MapTest

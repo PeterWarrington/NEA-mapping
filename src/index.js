@@ -3,7 +3,7 @@
 var express = require('express');
 var fs = require('fs');
 var app = express();
-const hostname = '127.0.0.1';
+const hostname = 'localhost';
 const port = 80;
 const options = {index: "index/index.html"};
 const path = require("path");
@@ -31,6 +31,8 @@ app.get("/api/GetDBfromQuery", (req, res) => require("./api/dbFromQuery.js").get
 
 app.use(express.static('web', options));
 app.listen(port);
+
+logger.log(`Server has started at http://${hostname}:${port}`);
 
 function getData() {
     // Read file

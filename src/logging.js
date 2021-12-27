@@ -22,10 +22,7 @@ module.exports.Logger = class Logger {
             fs.mkdirSync('logs');
         }
 
-        this.log(message, (result, message="[None]") => {
-            if (result == consts.ERROR) console.log(`${this.generateLogStamp(consts.CONSOLE_LOGGING_ONLY)} Unable to write to log file. Using console logging only. ` +
-                `Error detail:\n\t ${message}`);
-        });
+        this.log(message);
     }
 
     /**
@@ -33,35 +30,19 @@ module.exports.Logger = class Logger {
      * @param {bool} logError Optional flag, if true, adds a note to log stamps to indicate that only console logging is being used.
      * @returns {string} A log stamp that is added at the beginning of log messages
      */
-    generateLogStamp = (logError=false) => {
-        if (logError)
-            return `[${consts.projectName}, CONSOLE LOGGING ONLY, ${Date.now()}]`;
-        return `[${consts.projectName}, ${Date.now()}]`;
-    }
-    /**
-     * Default callback for Logger.log.
-     * @param {int} result One of consts.ERROR or consts.OK used to indicate logging success
-     * @param {string} message The optional error or message passed from log.
-     */
-    #defaultLogCallback = (result, message="[Unknown]") => {
-        if (result == consts.ERROR)
-            console.log(`${this.generateLogStamp(consts.CONSOLE_LOGGING_ONLY)} ${message}`);
-    }
+    generateLogStamp = () => `[${consts.projectName}, ${Date.now()}]`;
+
     /**
      * Used to write a log message to console and file.
      * @param {string} message Message to write to log
-     * @param {function(result, message)} callback Optional callback on log completion
      */
-    log(message, callback=this.#defaultLogCallback) {
+    log(message) {
         var stampedMessage = `${this.generateLogStamp()} ${message}`;
 
+        console.log(stampedMessage);
+
         fs.appendFile(this.logfile, stampedMessage + "\n", err => {
-            if (err) {
-                callback(consts.ERROR, err);
-            } else {
-                callback(consts.OK, message);
-                console.log(stampedMessage);
-            }
+            if (err) console.log("Logging error: " + err.name);
         });
     }
 }

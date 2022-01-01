@@ -23,6 +23,8 @@ class CanvasState {
     touchDevice = false
     /** An array of test nodes that should be drawn to screen, and nothing else, when draw() is called if not null */
     testMapPoints = null
+    /** Http request */
+    httpReq
 
     constructor () {
         this.canvas = document.getElementById("mapCanvas");
@@ -159,6 +161,12 @@ class CanvasState {
         // Resize to 100% (html decleration does not work)
         this.canvas.width = window.innerWidth;
         this.canvas.height = window.innerHeight;
+    }
+
+    updateMapData() {
+        // TODO: Update database, rather than completely replace it
+        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=${-canvasState.xTranslation - 500}&y=${-canvasState.yTranslation - 500}&height=${(getAbsoluteHeight(canvasState.canvas)+500)/canvasState.zoomLevel}&width=${(getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel}`);
+        this.httpReq.send();
     }
 }
 
@@ -363,11 +371,11 @@ function MapTest() {
     canvasState.ctx.fillText("Loading map data...", 70, 110);
 
     // Get test db from server
-    var httpReq = new XMLHttpRequest();
-    httpReq.addEventListener("load", () => {
+    canvasState.httpReq = new XMLHttpRequest();
+    canvasState.httpReq.addEventListener("load", () => {
         // Request returns db as uninstanciated object
         // we need to convert this
-        simpleDB = JSON.parse(httpReq.response);
+        simpleDB = JSON.parse(canvasState.httpReq.response);
         database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
         
         canvasState.database = database;
@@ -375,8 +383,7 @@ function MapTest() {
         // Draw
         canvasState.draw();
     });
-    httpReq.open("GET", "http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=0&y=0&height=99999999999&width=99999999999");
-    httpReq.send();
+    canvasState.updateMapData();
 }
 
 function testPointsExecute(canvasState) {
@@ -421,4 +428,15 @@ function getAbsoluteHeight(el) {
                     parseFloat(styles['marginBottom']);
 
     return Math.ceil(el.offsetHeight + margin);
+}
+
+function getAbsoluteWidth(el) {
+    // Get the DOM Node if you pass in a string
+    el = (typeof el === 'string') ? document.querySelector(el) : el; 
+
+    var styles = window.getComputedStyle(el);
+    var margin = parseFloat(styles['marginRight']) +
+                    parseFloat(styles['marginLeft']);
+
+    return Math.ceil(el.offsetWidth + margin);
 }

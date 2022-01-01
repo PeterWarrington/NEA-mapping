@@ -143,9 +143,10 @@ logger = new (require('../logging.js').Logger)();
      // Resolve starting path parts of paths
      var rootDBpaths = db.getMapObjectsOfType("PATH");
      for (let i = 0; i < rootDBpaths.length; i++) {
-         const path = rootDBpaths[i];
+         const path = shared.Path.pathFromObject(rootDBpaths[i]);
          path.startingPathPartID = resolvePathPartID(filteredDB, db, path.startingPathPartID);
-         filteredDB.addMapObject(path);
+         if (path.startingPathPartID)
+            filteredDB.addMapObject(path);
      }
 
      return filteredDB;

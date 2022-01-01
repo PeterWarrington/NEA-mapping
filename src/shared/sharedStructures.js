@@ -63,10 +63,14 @@ shared.MapDataObjectDB = class MapDataObjectDB {
 
     getMapObjectsOfType(type) {
         let mapObjects = [];
-        let objectIDs = Object.keys(this.db).filter(id => id.indexOf(type) == 0);
+        let objectIDs = this.getMapObjectIDsOfType(type);
         objectIDs.forEach((objectID) => mapObjects.push(this.db[objectID]));
 
         return mapObjects;
+    }
+
+    getMapObjectIDsOfType(type) {
+        return Object.keys(this.db).filter(id => id.indexOf(type) == 0);
     }
 
     /**

@@ -375,7 +375,7 @@ function MapTest() {
         // Draw
         canvasState.draw();
     });
-    httpReq.open("GET", "http://localhost/api/GetDBfromQuery");
+    httpReq.open("GET", "http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=0&y=0&height=99999999999&width=99999999999");
     httpReq.send();
 }
 

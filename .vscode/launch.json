@@ -11,9 +11,9 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\src\\index.js",
+            "program": "${workspaceFolder}//src//index.js",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}\\src\\",
+            "cwd": "${workspaceFolder}//src//",
             "runtimeArgs": [
                 "--max-old-space-size=2048"
             ]
@@ -25,9 +25,9 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\src\\convertFromOSM.js",
+            "program": "${workspaceFolder}//src//convertFromOSM.js",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}\\src\\",
+            "cwd": "${workspaceFolder}//src//",
             "args": ["--cacheRead"],
             "runtimeArgs": [
                 "--max-old-space-size=16384",
@@ -41,9 +41,9 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}\\src\\does_not_work_or_rejected\\threadedOSMconvert\\ThreadedConvertFromOSM.js",
+            "program": "${workspaceFolder}//src//does_not_work_or_rejected//threadedOSMconvert//ThreadedConvertFromOSM.js",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}\\src\\",
+            "cwd": "${workspaceFolder}//src//",
             "runtimeArgs": [
                 "--max-old-space-size=16384",
                 "--expose-gc"

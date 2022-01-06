@@ -74,7 +74,6 @@ logger = new (require('../logging.js').Logger)();
         JSON.stringify(path.metadata).includes(searchTerm));
  }
 
- // URL to test this: http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=5332.999999999993&y=4692.4999999999945&height=2000&width=2000
  function filterByMapArea(req, res, db) {
      if (req.query.noMapAreaFilter) return db;
 
@@ -83,6 +82,16 @@ logger = new (require('../logging.js').Logger)();
      var y;
      var height;
      var width;
+
+     // These variables refer to the area to exclude from results (because it has already been requested by the client)
+     var excludeAreas = [{
+        x: 0,
+        y: 0,
+        height: 0,
+        width: 0,
+        defined: false
+    }]
+
      var mapAreaError = false;
 
      try {
@@ -101,7 +110,14 @@ logger = new (require('../logging.js').Logger)();
          if (req.query.width != undefined)
              width = parseInt(req.query.width);
          else mapAreaError = true;
-     } catch {
+
+         if (req.query.excludeAreas instanceof Array)
+            excludeAreas = JSON.parse(req.query.excludeAreas)
+
+         if (isNaN(excludeAreas.at(-1).x) || isNaN(excludeAreas.at(-1).y) ||
+            isNaN(excludeAreas.at(-1).height) || isNaN(excludeAreas.at(-1).width))
+            mapAreaError = true;
+     } catch (err) {
          mapAreaError = true;
      }
 
@@ -113,8 +129,19 @@ logger = new (require('../logging.js').Logger)();
 
      for (let i = 0; i < rootDBpoints.length; i++) {
         const point = rootDBpoints[i];
+
+        var inExcludeArea = true;
+        for (let a = 0; a < excludeAreas.length; a++) {
+            const excludeArea = excludeAreas[a];
+            inExcludeArea = inExcludeArea && (
+                point.x <= excludeArea.x && point.x >= excludeArea.x + excludeArea.y &&
+                point.y <= excludeArea.y && point.y >= excludeArea.y + excludeArea.height
+            );
+            if (!inExcludeArea) break
+        }
+        
         if (point.x >= x && point.x <= x + width &&
-            point.y >= y && point.y <= y + height)
+            point.y >= y && point.y <= y + height && (!excludeAreas.at(-1).defined || inExcludeArea))
                 filteredDB.addMapObject(point);
      }
 

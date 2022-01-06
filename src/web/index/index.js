@@ -26,6 +26,18 @@ class CanvasState {
     /** Http request */
     httpReq
 
+    /** Stores details of areas drawn to screen */
+    areasDrawn = [{
+        x: 0,
+        y: 0,
+        height: 0,
+        width: 0,
+        definded: false
+    }]
+
+    /** Stores the timeout ID of the timer that updates map data */
+    mapUpdateTimer
+
     constructor () {
         this.canvas = document.getElementById("mapCanvas");
         this.ctx = this.canvas.getContext('2d');
@@ -164,8 +176,28 @@ class CanvasState {
     }
 
     updateMapData() {
-        // TODO: Update database, rather than completely replace it
-        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=${-canvasState.xTranslation - 500}&y=${-canvasState.yTranslation - 500}&height=${(getAbsoluteHeight(canvasState.canvas)+500)/canvasState.zoomLevel}&width=${(getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel}`);
+        let area = {
+            x: -canvasState.xTranslation - 500,
+            y: -canvasState.yTranslation - 500,
+            height: (getAbsoluteHeight(canvasState.canvas)+500)/canvasState.zoomLevel,
+            width: (getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel,
+            definded: true
+        }
+
+        // If last drawn area is same as or smaller than area on screen, expand area to draw
+        if (area.x <= this.areasDrawn.at(-1).x - 500)
+            area.x = this.areasDrawn.at(-1).x - 500
+        if (area.y <= this.areasDrawn.at(-1).y - 500)
+            area.y = this.areasDrawn.at(-1).y - 500
+        if (area.height <= this.areasDrawn.at(-1).height + 500)
+            area.height = this.areasDrawn.at(-1).height + 500
+        if (area.width <= this.areasDrawn.at(-1).width + 500)
+            area.width = this.areasDrawn.at(-1).width + 500
+
+        this.areasDrawn.push(Object.assign({}, area));
+
+        // Test url (no map area): http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&noMapAreaFilter=true
+        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=${area.x}&y=${area.y}&height=${area.height}&width=${area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
         this.httpReq.send();
     }
 }
@@ -384,6 +416,12 @@ function MapTest() {
         canvasState.draw();
     });
     canvasState.updateMapData();
+
+    // Update canvas data every second
+    canvasState.mapUpdateTimer = setInterval(() => {
+        canvasState.updateMapData();
+        console.log("tick")
+    }, 1000);
 }
 
 function testPointsExecute(canvasState) {

@@ -418,10 +418,7 @@ function MapTest() {
     canvasState.updateMapData();
 
     // Update canvas data every second
-    canvasState.mapUpdateTimer = setInterval(() => {
-        canvasState.updateMapData();
-        console.log("tick")
-    }, 1000);
+    canvasState.mapUpdateTimer = setInterval(() => canvasState.updateMapData(), 1000);
 }
 
 function testPointsExecute(canvasState) {

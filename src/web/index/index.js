@@ -1,4 +1,5 @@
 canvasState = undefined;
+debug_displayAreasDrawn = false;
 
 class CanvasState {
     /** The {CanvasRenderingContext2D} that is used on the canvas */
@@ -30,15 +31,11 @@ class CanvasState {
     mapDataUpdateOngoing = false
     /** Map data update queued flag */
     mapDataUpdateQueued = false;
+    /** Contains details about last/current area drawn to screen */
+    area
 
     /** Stores details of areas drawn to screen */
-    areasDrawn = [{
-        x: 0,
-        y: 0,
-        height: 0,
-        width: 0,
-        definded: false
-    }]
+    areasDrawn = []
 
     constructor () {
         this.canvas = document.getElementById("mapCanvas");
@@ -164,6 +161,8 @@ class CanvasState {
             this.database.db[pathID].plotLine(this);
         }
         // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
+
+        if (debug_displayAreasDrawn) debug_displayAreasDrawnFunc();
     }
     
     #testDraw() {
@@ -196,29 +195,16 @@ class CanvasState {
         }
 
         this.mapDataUpdateOngoing = true;
-        
-        let area = {
+
+        canvasState.area = {
             x: -canvasState.xTranslation - 500,
             y: -canvasState.yTranslation - 500,
             height: (getAbsoluteHeight(canvasState.canvas)+500)/canvasState.zoomLevel,
-            width: (getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel,
-            definded: true
+            width: (getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel
         }
 
-        // If last drawn area is same as or smaller than area on screen, expand area to draw
-        if (area.x <= this.areasDrawn.at(-1).x - 500)
-            area.x = this.areasDrawn.at(-1).x - 500
-        if (area.y <= this.areasDrawn.at(-1).y - 500)
-            area.y = this.areasDrawn.at(-1).y - 500
-        if (area.height <= this.areasDrawn.at(-1).height + 500)
-            area.height = this.areasDrawn.at(-1).height + 500
-        if (area.width <= this.areasDrawn.at(-1).width + 500)
-            area.width = this.areasDrawn.at(-1).width + 500
-
-        this.areasDrawn.push(Object.assign({}, area));
-
         // Test url (no map area): http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&noMapAreaFilter=true
-        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=${area.x}&y=${area.y}&height=${area.height}&width=${area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
+        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
         this.httpReq.send();
     }
 
@@ -239,6 +225,9 @@ class CanvasState {
 
         // Draw
         canvasState.draw();
+
+        // Add area drawn to list of areas drawn
+        canvasState.areasDrawn.push(Object.assign({}, canvasState.area));
 
         // Update time since last map data update
         canvasState.timeOfLastMapDataUpdate = Date.now();
@@ -460,6 +449,24 @@ function debug_viewWholeMap(canvasState) {
     canvasState.xTranslation = -4021.6666666666615;
     canvasState.yTranslation = -2433.8333333333303;
     canvasState.zoomLevel = 0.10000000000000014;
+}
+
+/**
+ * Display canvasState.areasDrawn on map for debug purposes.
+ */
+function debug_displayAreasDrawnFunc() {
+    canvasState.areasDrawn.forEach(areaDrawn => {
+        canvasState.ctx.beginPath();
+        canvasState.ctx.lineWidth = "6";
+        canvasState.ctx.strokeStyle = "red";
+        canvasState.ctx.rect(
+            (areaDrawn.x + canvasState.xTranslation) * canvasState.zoomLevel, 
+            (areaDrawn.y + canvasState.yTranslation) * canvasState.zoomLevel, 
+            areaDrawn.width * canvasState.zoomLevel, 
+            areaDrawn.height * canvasState.zoomLevel
+        );
+        canvasState.ctx.stroke();
+    })
 }
 
 function areCoordsOnScreen(x, y, canvasState) {

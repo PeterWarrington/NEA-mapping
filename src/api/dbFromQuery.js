@@ -109,13 +109,7 @@ var debug_searchFilterCount = 0;
      var width;
 
      // These variables refer to the area to exclude from results (because it has already been requested by the client)
-     var excludeAreas = [{
-        x: 0,
-        y: 0,
-        height: 0,
-        width: 0,
-        defined: false
-    }]
+     var excludeAreas = []
 
      var mapAreaError = false;
 
@@ -136,11 +130,12 @@ var debug_searchFilterCount = 0;
              width = parseInt(req.query.width);
          else mapAreaError = true;
 
-         if (req.query.excludeAreas instanceof Array)
+         if (JSON.parse(req.query.excludeAreas) instanceof Array)
             excludeAreas = JSON.parse(req.query.excludeAreas)
 
-         if (isNaN(excludeAreas.at(-1).x) || isNaN(excludeAreas.at(-1).y) ||
-            isNaN(excludeAreas.at(-1).height) || isNaN(excludeAreas.at(-1).width))
+         if (excludeAreas.length > 0 && 
+            (isNaN(excludeAreas.at(-1).x) || isNaN(excludeAreas.at(-1).y) ||
+            isNaN(excludeAreas.at(-1).height) || isNaN(excludeAreas.at(-1).width)))
             mapAreaError = true;
      } catch (err) {
          mapAreaError = true;
@@ -155,19 +150,18 @@ var debug_searchFilterCount = 0;
      for (let i = 0; i < rootDBpoints.length; i++) {
         const point = rootDBpoints[i];
 
-        var inExcludeArea = true;
+        var outsideOfExcludeArea = true;
         for (let a = 0; a < excludeAreas.length; a++) {
             const excludeArea = excludeAreas[a];
-            inExcludeArea = inExcludeArea && (
-                point.x <= excludeArea.x && point.x >= excludeArea.x + excludeArea.y &&
-                point.y <= excludeArea.y && point.y >= excludeArea.y + excludeArea.height
+            outsideOfExcludeArea = outsideOfExcludeArea && (
+                point.x <= excludeArea.x || point.x >= excludeArea.x + excludeArea.width ||
+                point.y <= excludeArea.y || point.y >= excludeArea.y + excludeArea.height
             );
-            if (!inExcludeArea) break
+            if (!outsideOfExcludeArea) break;
         }
         
-        if (point.x >= x && point.x <= x + width &&
-            point.y >= y && point.y <= y + height && (!excludeAreas.at(-1).defined || inExcludeArea))
-                filteredDB.addMapObject(point);
+        if (point.y >= y && point.y <= y + height && outsideOfExcludeArea)
+            filteredDB.addMapObject(point);
      }
 
      // Filter path parts to those that only contain filtered points

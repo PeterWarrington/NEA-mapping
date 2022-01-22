@@ -1,4 +1,3 @@
-testPointsMode = false;
 canvasState = undefined;
 
 class CanvasState {
@@ -25,6 +24,12 @@ class CanvasState {
     testMapPoints = null
     /** Http request */
     httpReq
+    /** Time of last map data update */
+    timeOfLastMapDataUpdate = 0;
+    /** Map data update ongoing flag */
+    mapDataUpdateOngoing = false
+    /** Map data update queued flag */
+    mapDataUpdateQueued = false;
 
     /** Stores details of areas drawn to screen */
     areasDrawn = [{
@@ -91,6 +96,8 @@ class CanvasState {
         this.canvasMouseDown = false;
         if (this.canvas.style.cursor == "grabbing")
         this.canvas.style.cursor = "grab";
+
+        this.updateMapData();
     }
 
     mapInteractionBegin(pageX, pageY) {
@@ -127,7 +134,9 @@ class CanvasState {
         if (this.zoomLevel + zoomChange < 0.1)
             return;
         this.zoomLevel += zoomChange;
+
         this.draw();
+        this.updateMapData();
     }
 
     /**
@@ -172,7 +181,22 @@ class CanvasState {
         this.canvas.height = window.innerHeight;
     }
 
-    updateMapData() {
+    updateMapData(forceUpdate=false) {
+        // Only continue if forceUpdate flag is set, or more than 500ms since last map data update and mapDataUpdateOngoing flag is not set
+        if (!forceUpdate && (this.mapDataUpdateOngoing || Date.now() - this.timeOfLastMapDataUpdate < 500)) {
+            if (!this.mapDataUpdateQueued) {
+                // Try again in 1s time
+                setTimeout(() => {
+                    this.mapDataUpdateQueued = false;
+                    this.updateMapData();
+                }, 1000);
+                this.mapDataUpdateQueued = true;
+            }
+            return;
+        }
+
+        this.mapDataUpdateOngoing = true;
+        
         let area = {
             x: -canvasState.xTranslation - 500,
             y: -canvasState.yTranslation - 500,
@@ -412,8 +436,16 @@ function MapTest() {
 
         // Draw
         canvasState.draw();
+
+        // Update time since last map data update
+        canvasState.timeOfLastMapDataUpdate = Date.now();
+        
+        // Update map data update ongoing flag
+        canvasState.mapDataUpdateOngoing = false;
     });
-    if(shared.debug_on) debug_viewWholeMap(canvasState);
+
+    // if(shared.debug_on) debug_viewWholeMap(canvasState);
+
     canvasState.updateMapData();
 }
 

@@ -35,9 +35,6 @@ class CanvasState {
         definded: false
     }]
 
-    /** Stores the timeout ID of the timer that updates map data */
-    mapUpdateTimer
-
     constructor () {
         this.canvas = document.getElementById("mapCanvas");
         this.ctx = this.canvas.getContext('2d');
@@ -416,31 +413,17 @@ function MapTest() {
         canvasState.draw();
     });
     canvasState.updateMapData();
-
-    // Update canvas data every second
-    canvasState.mapUpdateTimer = setInterval(() => canvasState.updateMapData(), 1000);
 }
 
-function testPointsExecute(canvasState) {
-    // Initalise testMapPoints
-    canvasState.testMapPoints = [];
-
-    // Get test points from server
-    var httpReq = new XMLHttpRequest();
-    httpReq.addEventListener("load", () => {
-        // Request returns 2D array of MapPoints represented as simple objects, not as Path instances
-        // we need to convert this
-        mapPoint2DObjectArray = JSON.parse(httpReq.response);
-        mapPoint2DObjectArray.forEach((innerArray) => innerArray.forEach(mapPointObject => {
-            let mapPointToPush = MapPoint.mapPointFromObject(mapPointObject);
-            canvasState.testMapPoints.push(mapPointToPush);
-        }));
-            
-        // Draw points
-        canvasState.draw();
-    });
-    httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22]`);
-    httpReq.send();
+/**
+ * Function that can be called for debug purposes to view the whole map.
+ * Useful to verify that map data is being loaded correctly.
+ * @param {*} canvasState 
+ */
+function debug_viewWholeMap(canvasState) {
+    canvasState.xTranslation = -4021.6666666666615;
+    canvasState.yTranslation = -2433.8333333333303;
+    canvasState.zoomLevel = 0.10000000000000014;
 }
 
 function areCoordsOnScreen(x, y, canvasState) {

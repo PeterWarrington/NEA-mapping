@@ -221,6 +221,31 @@ class CanvasState {
         this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=${area.x}&y=${area.y}&height=${area.height}&width=${area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
         this.httpReq.send();
     }
+
+    mapDataReceiveFunc = () => {
+        // Request returns db as uninstanciated object
+        // we need to convert this
+        var simpleDB = JSON.parse(canvasState.httpReq.response);
+
+        if(shared.debug_on) 
+            console.log(`Received JSON has ${Object.keys(simpleDB.db).length} items.`)
+
+        var database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
+
+        canvasState.database.mergeWithOtherDB(database);
+
+        if(shared.debug_on) 
+            console.log(`Computed database currently has ${canvasState.database.getMapObjectsOfType("PATH").length} paths.`);
+
+        // Draw
+        canvasState.draw();
+
+        // Update time since last map data update
+        canvasState.timeOfLastMapDataUpdate = Date.now();
+        
+        // Update map data update ongoing flag
+        canvasState.mapDataUpdateOngoing = false;
+    }
 }
 
 class Path extends shared.Path {
@@ -419,30 +444,7 @@ function MapTest() {
 
     // Get test db from server
     canvasState.httpReq = new XMLHttpRequest();
-    canvasState.httpReq.addEventListener("load", () => {
-        // Request returns db as uninstanciated object
-        // we need to convert this
-        simpleDB = JSON.parse(canvasState.httpReq.response);
-
-        if(shared.debug_on) 
-            console.log(`Received JSON has ${Object.keys(simpleDB.db).length} items.`)
-
-        var database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
-
-        canvasState.database.mergeWithOtherDB(database);
-
-        if(shared.debug_on) 
-            console.log(`Computed database currently has ${canvasState.database.getMapObjectsOfType("PATH").length} paths.`);
-
-        // Draw
-        canvasState.draw();
-
-        // Update time since last map data update
-        canvasState.timeOfLastMapDataUpdate = Date.now();
-        
-        // Update map data update ongoing flag
-        canvasState.mapDataUpdateOngoing = false;
-    });
+    canvasState.httpReq.addEventListener("load", canvasState.mapDataReceiveFunc);
 
     // if(shared.debug_on) debug_viewWholeMap(canvasState);
 

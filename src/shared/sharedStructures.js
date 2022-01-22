@@ -107,6 +107,21 @@ shared.MapDataObjectDB = class MapDataObjectDB {
 
         return database;
     }
+
+    /**
+     * Copy another database's items into this db.
+     * @param {MapDataObjectDB} otherDB 
+     */
+    mergeWithOtherDB(otherDB) {
+        let otherDBitems = Object.values(otherDB.db);
+
+        for (let i = 0; i < otherDBitems.length; i++) {
+            const item = otherDBitems[i];
+
+            if (this.db[item.ID] == undefined)
+                this.addMapObject(item);
+        }
+    }
 }
 
 shared.MapDataObject = class MapDataObject {

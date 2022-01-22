@@ -13,7 +13,7 @@ class CanvasState {
     /** Indicates the last recorded mouse position relative to the page in Y */
     lastPageY = -1
     /** The database containing map points */
-    database
+    database = new shared.MapDataObjectDB()
     /** A {int} multiplier to represent the zoom level */
     zoomLevel = 1
     /** {int} representing how the map has been translated in x */
@@ -231,24 +231,24 @@ class Path extends shared.Path {
         canvasState.ctx.beginPath();
         
         // Initialize array containing the  initial PathParts to draw
-        let startingPathPartsToDraw = [database.db[this.startingPathPartID]];
+        let startingPathPartsToDraw = [canvasState.database.db[this.startingPathPartID]];
 
         const skipOneInEveryNo = 1;
 
         // Iterate through startingPathPartsToDraw
         for (let i = 0; i < startingPathPartsToDraw.length; i++) {
             const startingPathPart = startingPathPartsToDraw[i];
-            database.db[startingPathPart.pointID].canvasState = canvasState;
+            canvasState.database.db[startingPathPart.pointID].canvasState = canvasState;
 
             // Move to the starting point
-            canvasState.ctx.moveTo(database.db[startingPathPart.pointID].pathPointDisplayX, 
-                database.db[startingPathPart.pointID].pathPointDisplayY);
+            canvasState.ctx.moveTo(canvasState.database.db[startingPathPart.pointID].pathPointDisplayX, 
+                canvasState.database.db[startingPathPart.pointID].pathPointDisplayY);
 
             // If we get to a branch, push the other branches to startingPathPartsToDraw to iterate through later
             let currentPathPart = startingPathPart;
             var counter = 0;
             while (currentPathPart.nextPathPartIDs.length != 0) {
-                database.db[currentPathPart.pointID].canvasState = canvasState;
+                canvasState.database.db[currentPathPart.pointID].canvasState = canvasState;
                 
                 // Advance pointer to next connecting point in the closest branch
                 // Or if skipping, skip to the one after that if not at the end of the path
@@ -256,27 +256,27 @@ class Path extends shared.Path {
 
                 // Draw point if this point is on screen, or the next point is on screen
                 if (
-                    areCoordsOnScreen(database.db[currentPathPart.pointID].pathPointDisplayX, 
-                    database.db[currentPathPart.pointID].pathPointDisplayY, canvasState)
+                    areCoordsOnScreen(canvasState.database.db[currentPathPart.pointID].pathPointDisplayX, 
+                    canvasState.database.db[currentPathPart.pointID].pathPointDisplayY, canvasState)
                         ||
-                    areCoordsOnScreen(database.db[nextPointer.pointID].pathPointDisplayX, 
-                        database.db[nextPointer.pointID].pathPointDisplayY, canvasState)
+                    areCoordsOnScreen(canvasState.database.db[nextPointer.pointID].pathPointDisplayX, 
+                        canvasState.database.db[nextPointer.pointID].pathPointDisplayY, canvasState)
                 ) {
                     // Plot a line from the last plotted point to the point at currentPathPart
-                    canvasState.ctx.lineTo(database.db[currentPathPart.pointID].pathPointDisplayX, 
-                        database.db[currentPathPart.pointID].pathPointDisplayY);
+                    canvasState.ctx.lineTo(canvasState.database.db[currentPathPart.pointID].pathPointDisplayX, 
+                        canvasState.database.db[currentPathPart.pointID].pathPointDisplayY);
                 }
                 
                 for (let j = 1; j < currentPathPart.nextPathPartIDs.length; j++) {
-                    startingPathPartsToDraw.push(database.db[currentPathPart.nextPathPartIds[j]]);
+                    startingPathPartsToDraw.push(canvasState.database.db[currentPathPart.nextPathPartIds[j]]);
                 }
 
                 currentPathPart = nextPointer;
 
                 counter++;
             }
-            canvasState.ctx.lineTo(database.db[currentPathPart.pointID].pathPointDisplayX, 
-                database.db[currentPathPart.pointID].pathPointDisplayY);
+            canvasState.ctx.lineTo(canvasState.database.db[currentPathPart.pointID].pathPointDisplayX, 
+                canvasState.database.db[currentPathPart.pointID].pathPointDisplayY);
             
             // Draw line to canvas
             canvasState.ctx.stroke();
@@ -378,12 +378,6 @@ function MapTest() {
     // Create canvas state
     canvasState = new CanvasState();
 
-    // Enter testPointsMode if flag set
-    if (testPointsMode) {
-        testPointsExecute(canvasState);
-        return;
-    }
-
     // Import test nodes
     // Translate graph so does not overlap header
     canvasState.mapTranslate(15, getAbsoluteHeight(document.getElementById("header")) + 15);
@@ -409,12 +403,12 @@ function MapTest() {
         if(shared.debug_on) 
             console.log(`Received JSON has ${Object.keys(simpleDB.db).length} items.`)
 
-        database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
-        
-        if(shared.debug_on) 
-            console.log(`Computed database currently has ${database.getMapObjectsOfType("PATH").length} paths.`);
+        var database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
 
-        canvasState.database = database;
+        canvasState.database.mergeWithOtherDB(database);
+
+        if(shared.debug_on) 
+            console.log(`Computed database currently has ${canvasState.database.getMapObjectsOfType("PATH").length} paths.`);
 
         // Draw
         canvasState.draw();

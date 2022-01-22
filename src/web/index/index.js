@@ -405,13 +405,21 @@ function MapTest() {
         // Request returns db as uninstanciated object
         // we need to convert this
         simpleDB = JSON.parse(canvasState.httpReq.response);
+
+        if(shared.debug_on) 
+            console.log(`Received JSON has ${Object.keys(simpleDB.db).length} items.`)
+
         database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
         
+        if(shared.debug_on) 
+            console.log(`Computed database currently has ${database.getMapObjectsOfType("PATH").length} paths.`);
+
         canvasState.database = database;
 
         // Draw
         canvasState.draw();
     });
+    if(shared.debug_on) debug_viewWholeMap(canvasState);
     canvasState.updateMapData();
 }
 

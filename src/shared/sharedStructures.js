@@ -5,6 +5,9 @@ try {
     module.exports.shared = shared;
 } catch {}
 
+// Readable debug_on setting across both client and server
+shared.debug_on = true;
+
 /** A database model used to containerise map data using an ID system
  * of the format [Type]_[UID]
  * Contained map objects are accessed using database.db[id],

@@ -1,6 +1,11 @@
 fs = require('fs');
 logger = new (require('../logging.js').Logger)();
 
+// Used to count number of items filtered via highways for debugging
+var debug_highwayFilterCount = 0;
+// Used to count number of items filtered via search term for debugging
+var debug_searchFilterCount = 0;
+
 /**
  * Querys the database stored in a file based on parameters passed to API.
  * @param {Object} shared The shared structures
@@ -9,6 +14,9 @@ logger = new (require('../logging.js').Logger)();
  */
  module.exports.getDBfromQuery = function (shared, req, res) {
     var databaseToReturn = new shared.MapDataObjectDB();
+
+    if (shared.debug_on) 
+        logger.log(`Root database has ${Object.keys(shared.database.db).length} items.`);
 
     // Get highways from db:
     let startTime = Date.now();
@@ -22,14 +30,19 @@ logger = new (require('../logging.js').Logger)();
 
         // These filter function calls return undefined if unsuccesful, where bool && undefined == undefined
         // Filter by highways
-        meetsCriteria = meetsCriteria && filterByHighway(req, res, path);
+        meetsCriteria = meetsCriteria && filterByHighway(req, res, path, shared);
 
         // Filter by search term
-        meetsCriteria = meetsCriteria && filterBySearchTerm(req, res, path);
+        meetsCriteria = meetsCriteria && filterBySearchTerm(req, res, path, shared);
 
         if (meetsCriteria) {
             paths.push(path)
         } else if (meetsCriteria == undefined) return;
+    }
+
+    if (shared.debug_on) {
+        logger.log(`Highway filtered database has ${debug_highwayFilterCount} paths.`);
+        logger.log(`Highway and search filtered database has ${debug_searchFilterCount} paths.`)
     }
 
     if (paths.length == rootDBpaths.length)
@@ -43,10 +56,13 @@ logger = new (require('../logging.js').Logger)();
 
     databaseToReturn = filterByMapArea(req, res, databaseToReturn);
 
+    if (shared.debug_on) 
+        logger.log(`Fully filtered database has ${databaseToReturn.getMapObjectsOfType("PATH").length} paths.`);
+
     res.send(databaseToReturn);
  }
 
- function filterByHighway(req, res, path) {
+ function filterByHighway(req, res, path, shared) {
     var highwayError = false;
     // var acceptedHighways = ["motorway","primary","trunk"];
     var acceptedHighways = [];
@@ -61,17 +77,26 @@ logger = new (require('../logging.js').Logger)();
     if (highwayError || !(acceptedHighways instanceof Array)) 
         return throwParamError("INVALID_PARAM: highways (dbFromQuery)", res);
 
-    return (acceptedHighways.length == 0
-            || acceptedHighways.includes(path.metadata.highway));
+
+    let result = (acceptedHighways.length == 0
+        || acceptedHighways.includes(path.metadata.highway));
+
+    if (shared.debug_on && result) debug_highwayFilterCount++;
+
+    return result;
  }
 
- function filterBySearchTerm(req, res, path) {
+ function filterBySearchTerm(req, res, path, shared) {
     var searchTerm = false;
     if (req.query.searchTerm != false)
         searchTerm = req.query.searchTerm;
     
-    return (!searchTerm || searchTerm == undefined ||
+    let result = (!searchTerm || searchTerm == undefined ||
         JSON.stringify(path.metadata).includes(searchTerm));
+
+    if (shared.debug_on && result) debug_searchFilterCount++;
+
+    return result;
  }
 
  function filterByMapArea(req, res, db) {

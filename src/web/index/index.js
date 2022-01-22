@@ -252,7 +252,7 @@ class Path extends shared.Path {
                 
                 // Advance pointer to next connecting point in the closest branch
                 // Or if skipping, skip to the one after that if not at the end of the path
-                let nextPointer = shared.PathPart.getPartByStepsAway(database, currentPathPart, 3);
+                let nextPointer = shared.PathPart.getPartByStepsAway(canvasState.database, currentPathPart, 3);
 
                 // Draw point if this point is on screen, or the next point is on screen
                 if (

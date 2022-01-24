@@ -18,13 +18,18 @@ if (cachedOSMdataAvailable) {
 }
 
 // Cache osmData
-if (!process.argv.includes("--noCacheWrite") && !cachedOSMdataAvailable)
-fs.writeFile(".osmToJS_osmData.json", JSON.stringify(osmData), function(err) {
-  if(err) {
-      return console.log(err);
-  }
-  console.log("Background process: OS-JS data been cached");
-}); 
+try {
+  if (!process.argv.includes("--noCacheWrite") && !cachedOSMdataAvailable)
+  fs.writeFile(".osmToJS_osmData.json", JSON.stringify(osmData), function(err) {
+    if(err) {
+        return console.log(err);
+    }
+    console.log("Background process: OS-JS data been cached");
+  });
+} catch (e) {
+  // Error most likely occurs because osmData is too large for JSON.stringify
+  console.log(`Unable to cache OS-JS data. ${e.name}: ${e.message}. Continuing anyway...`);
+}
 
 console.log("Extracting ways, nodes, and those relations with route=road...");
 
@@ -152,6 +157,18 @@ for (let w = 0; w < wLength; w++) {
       break;
     case "primary_link":
       path.data.pathFillStyle = "#00ff00";
+      break;
+    case "secondary":
+      path.data.pathFillStyle = "#c91a8c";
+      break;
+    case "secondary_link":
+      path.data.pathFillStyle = "#7a0953";
+      break;
+    case "tertiary":
+      path.data.pathFillStyle = "#575355";
+      break;
+    case "tertiary_link":
+      path.data.pathFillStyle = "#54414d";
       break;
     default:
       break;

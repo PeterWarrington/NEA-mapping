@@ -204,7 +204,7 @@ class CanvasState {
         }
 
         // Test url (no map area): http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&noMapAreaFilter=true
-        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
+        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22,%22secondary%22,%22primary_link%22,%22secondary_link%22,%22trunk_link%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
         this.httpReq.send();
     }
 
@@ -262,11 +262,7 @@ class Path extends shared.Path {
             return;
         }
 
-        // Set properties
-        canvasState.ctx.lineWidth = this.lineWidth;
-        canvasState.ctx.strokeStyle = this.data.pathFillStyle;
-
-        canvasState.ctx.beginPath();
+        this.getPathStyle();
         
         // Initialize array containing the  initial PathParts to draw
         let startingPathPartsToDraw = [canvasState.database.db[this.startingPathPartID]];
@@ -279,45 +275,63 @@ class Path extends shared.Path {
             canvasState.database.db[startingPathPart.pointID].canvasState = canvasState;
 
             // Move to the starting point
-            canvasState.ctx.moveTo(canvasState.database.db[startingPathPart.pointID].pathPointDisplayX, 
-                canvasState.database.db[startingPathPart.pointID].pathPointDisplayY);
+            let startX = canvasState.database.db[startingPathPart.pointID].pathPointDisplayX;
+            let startY = canvasState.database.db[startingPathPart.pointID].pathPointDisplayY;
 
             // If we get to a branch, push the other branches to startingPathPartsToDraw to iterate through later
             let currentPathPart = startingPathPart;
-            var counter = 0;
-            while (currentPathPart.nextPathPartIDs.length != 0) {
+            while (currentPathPart.nextPathPartIDs.length >= 0) {
                 canvasState.database.db[currentPathPart.pointID].canvasState = canvasState;
                 
                 // Advance pointer to next connecting point in the closest branch
                 // Or if skipping, skip to the one after that if not at the end of the path
                 let nextPointer = shared.PathPart.getPartByStepsAway(canvasState.database, currentPathPart, 3);
 
+                let endX = canvasState.database.db[currentPathPart.pointID].pathPointDisplayX;
+                let endY = canvasState.database.db[currentPathPart.pointID].pathPointDisplayY;
+
+                let nextEndX = canvasState.database.db[nextPointer.pointID].pathPointDisplayX;
+                let nextEndY = canvasState.database.db[nextPointer.pointID].pathPointDisplayY;
+
                 // Draw point if this point is on screen, or the next point is on screen
                 if (
-                    areCoordsOnScreen(canvasState.database.db[currentPathPart.pointID].pathPointDisplayX, 
-                    canvasState.database.db[currentPathPart.pointID].pathPointDisplayY, canvasState)
+                    areCoordsOnScreen(endX, endY, canvasState)
                         ||
-                    areCoordsOnScreen(canvasState.database.db[nextPointer.pointID].pathPointDisplayX, 
-                        canvasState.database.db[nextPointer.pointID].pathPointDisplayY, canvasState)
+                    areCoordsOnScreen(nextEndX, nextEndY, canvasState)
                 ) {
                     // Plot a line from the last plotted point to the point at currentPathPart
-                    canvasState.ctx.lineTo(canvasState.database.db[currentPathPart.pointID].pathPointDisplayX, 
-                        canvasState.database.db[currentPathPart.pointID].pathPointDisplayY);
+                    canvasState.ctx.beginPath();
+
+                    canvasState.ctx.lineWidth = this.data.borderWidth + this.data.lineWidth;
+                    canvasState.ctx.strokeStyle = this.data.borderStyle;
+
+                    canvasState.ctx.moveTo(startX, startY);
+                    canvasState.ctx.lineTo(endX, endY);
+
+                    canvasState.ctx.stroke();
+
+                    canvasState.ctx.beginPath();
+
+                    canvasState.ctx.lineWidth = this.data.lineWidth;
+                    canvasState.ctx.strokeStyle = this.data.fillStyle;
+
+                    canvasState.ctx.moveTo(startX, startY);
+                    canvasState.ctx.lineTo(endX, endY);
+
+                    canvasState.ctx.stroke();
+
+                    startX = endX;
+                    startY = endY;
                 }
                 
                 for (let j = 1; j < currentPathPart.nextPathPartIDs.length; j++) {
                     startingPathPartsToDraw.push(canvasState.database.db[currentPathPart.nextPathPartIds[j]]);
                 }
 
-                currentPathPart = nextPointer;
+                if (currentPathPart.nextPathPartIDs.length == 0) break;
 
-                counter++;
+                currentPathPart = nextPointer;
             }
-            canvasState.ctx.lineTo(canvasState.database.db[currentPathPart.pointID].pathPointDisplayX, 
-                canvasState.database.db[currentPathPart.pointID].pathPointDisplayY);
-            
-            // Draw line to canvas
-            canvasState.ctx.stroke();
         }
     }
 
@@ -326,6 +340,71 @@ class Path extends shared.Path {
      */
     plotPoints(canvasState=canvasState) {
         this.getAllPointsOnPath().forEach(point => point.drawPoint(canvasState));
+    }
+
+    /**
+     * Apply a key to the style of the path. Called while drawing.
+     */
+    getPathStyle() {
+        switch (this.metadata.highway) {
+            case "motorway":
+              this.data.borderWidth = 4;
+              this.data.lineWidth = 1;
+              this.data.borderStyle = "#347aeb"; // Blue
+              this.data.fillStyle = "#2b2b2b";
+              break;
+            case "motorway_link":
+              this.data.borderStyle = "#347aeb";
+              this.data.fillStyle = "#2b2b2b";
+              break;
+            case "trunk":
+              this.data.borderWidth = 2;
+              this.data.lineWidth = 2;
+              this.data.borderStyle = "#d622a0"; // Pink
+              this.data.fillStyle = "#347aeb"; // Blue
+              break;
+            case "trunk_link":
+              this.data.borderWidth = 2;
+              this.data.lineWidth = 3;
+              this.data.borderStyle = "#2b2b2b";
+              this.data.fillStyle = "#d622a0"; 
+              break;
+            case "primary":
+              this.data.borderWidth = 4;
+              this.data.lineWidth = 0;
+              this.data.borderStyle = "#d622a0"; // Pink
+              break;
+            case "primary_link":
+              this.data.lineWidth = 0;
+              this.data.borderStyle = "#d622a0";
+              break;
+            case "secondary":
+              this.data.borderWidth = 2;
+              this.data.lineWidth = 3;
+              this.data.borderStyle = "#d622a0"; // Pink
+              this.data.fillStyle = "#e6a31e"; // Orange
+              break;
+            case "secondary_link":
+              this.data.borderWidth = 1;
+              this.data.lineWidth = 3;
+              this.data.borderStyle = "#2b2b2b";
+              this.data.fillStyle = "#e6a31e";
+              break;
+            case "tertiary":
+              this.data.borderWidth = 1;
+              this.data.lineWidth = 3;
+              this.data.borderStyle = "#2b2b2b";
+              this.data.fillStyle = "#adadad"; // Gray
+              break;
+            case "tertiary_link":
+              this.data.borderWidth = 1;
+              this.data.lineWidth = 3;
+              this.data.borderStyle = "#2b2b2b";
+              this.data.fillStyle = "#adadad";
+              break;
+            default:
+              break;
+          }
     }
 }
 
@@ -470,8 +549,8 @@ function debug_displayAreasDrawnFunc() {
 }
 
 function areCoordsOnScreen(x, y, canvasState) {
-    return (x + canvasState.xTranslation) > 0 && (x + canvasState.xTranslation) < canvasState.canvas.width
-            && (y + canvasState.yTranslation) > 0 && (y + canvasState.yTranslation) < canvasState.canvas.height;
+    return x > 0 && x < canvasState.canvas.width
+            && y > 0 && y < canvasState.canvas.height;
 }
 
 // Once the page has fully loaded, call MapTest

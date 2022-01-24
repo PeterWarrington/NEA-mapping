@@ -239,13 +239,10 @@ shared.Path = class Path extends shared.MapDataObject {
     startingPathPartID
     /** Data, including options for the path when drawing to screen */
     data = {
-        pathFillStyle: "#e8cc4a",
-        pathLineWidth: 4
-    }
-
-    /** Returns the line width to be displayed on the canvas */
-    get lineWidth() {
-        return this.data.pathLineWidth;
+        borderWidth: 3,
+        lineWidth: 1,
+        borderStyle: "#e8cc4a",
+        fillStyle: "none"
     }
 
     /**

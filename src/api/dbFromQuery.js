@@ -47,7 +47,7 @@ var debug_searchFilterCount = 0;
 
     if (paths.length == rootDBpaths.length)
         // We are returning all the contents of the DB, no need to iterate through filtered paths
-        databaseToReturn = shared.db;
+        databaseToReturn = shared.database;
     else
         paths.forEach(path => {
             path.copyPathContentsToDB(shared.database, databaseToReturn);

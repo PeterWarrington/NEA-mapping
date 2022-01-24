@@ -8,3 +8,4 @@ src/report*
 *.cpuprofile
 src/db.json
 .DS_Store
+old/

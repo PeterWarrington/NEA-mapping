@@ -22,6 +22,8 @@ shared.MapDataObjectDB = class MapDataObjectDB {
     pathIDs = []
     /** Caches part IDs */
     partIDs = []
+    /** Caches area IDs */
+    areaIDs = []
 
     /**
      * Adds a map object to the database, generating a random ID.
@@ -39,6 +41,8 @@ shared.MapDataObjectDB = class MapDataObjectDB {
                 ID += "PART";
             else if (mapObject instanceof shared.Path)
                 ID += "PATH";
+            else if (mapObject instanceof shared.Area)
+                ID += "AREA"
             else
                 ID += "GENERIC";
 
@@ -60,6 +64,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         if (ID.indexOf("POINT") == 0) this.pointIDs.push(ID);
         if (ID.indexOf("PART") == 0) this.partIDs.push(ID);
         if (ID.indexOf("PATH") == 0) this.pathIDs.push(ID);
+        if (ID.indexOf("AREA") == 0) this.areaIDs.push(ID);
 
         return mapObject;
     }
@@ -330,5 +335,25 @@ shared.Path = class Path extends shared.MapDataObject {
         }
         var newPath = new shared.Path(startingPathPart.ID);
         return newPath;
+    }
+}
+
+/**
+ * Used to define polygons to drawn on map, such as bodies of water, and
+ * buildings.
+ */
+shared.Area = class Area extends shared.MapDataObject {
+    /** Sequential list of map point IDs that make up area */
+    mapPointIDs
+    /** Contains optional data 
+     * Such as borderStyle, fillStyle
+    */
+    data 
+
+    constructor (mapPointIDs, data={}) {
+        super();
+        
+        this.mapPointIDs = mapPointIDs;
+        this.data = data;
     }
 }

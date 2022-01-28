@@ -31,17 +31,17 @@ try {
   console.log(`Unable to cache OS-JS data. ${e.name}: ${e.message}. Continuing anyway...`);
 }
 
-console.log("Extracting ways, nodes, and those relations with route=road...");
+console.log("Extracting ways, and nodes...");
 
 var cachedNodedataAvailable = process.argv.includes("--cacheRead") && fs.existsSync(".osmToJS_nodes.json");
 
-var ways = [];
+var allWays = [];
 var nodes = {};
 
 for (let i = 0; i < osmData.elements[0].elements.length; i++) {
   const element = osmData.elements[0].elements[i];
   if (element.name == "node" && !cachedNodedataAvailable) nodes[element.attributes.id] = element;
-  if (element.name == "way") ways.push(element);
+  if (element.name == "way") allWays.push(element);
 }
 
 if (cachedNodedataAvailable) {
@@ -50,7 +50,7 @@ if (cachedNodedataAvailable) {
   console.log("\t\tCached node data read completed.");
 }
 
-console.log("\tWays, nodes and relation extraction complete.");
+console.log("\tWay and node extraction complete.");
 
 // Cache nodes
 if (!process.argv.includes("--noCacheWrite") && !cachedNodedataAvailable)
@@ -63,49 +63,52 @@ fs.writeFile(".osmToJS_nodes.json", JSON.stringify(nodes), function(err) {
 
 // Extract ways with <tag k="highway" ...>
 
-var roadWays = [];
+var filteredWays = [];
 
-var cachedRoadWaysAvailable = process.argv.includes("--cacheRead") && fs.existsSync(".osmToJS_roadWays.json");
-if (cachedRoadWaysAvailable) {
-  console.log("Reading cached roadways...");
-  roadWays = JSON.parse(fs.readFileSync(".osmToJS_roadWays.json"));
-  console.log("\tCached roadway read complete.")
+var cachedwaysAvailable = process.argv.includes("--cacheRead") && fs.existsSync(".osmToJS_ways.json");
+if (cachedwaysAvailable) {
+  console.log("Reading cached ways...");
+  allWays = JSON.parse(fs.readFileSync(".osmToJS_ways.json"));
+  console.log("\tCached way read complete.")
 } else {
-  console.log("Extracting ways with <tag k=\"highway\" ... > ...");
-  for (let w = 0; w < ways.length; w++) {
-    const way = ways[w];
+  console.log("Extracting ways...");
+  for (let w = 0; w < allWays.length; w++) {
+    const way = allWays[w];
     for (let e = 0; e < way.elements.length; e++) {
       const element = way.elements[e];
-      if (element.name == "tag" && element.attributes.k == "highway") roadWays.push(way);
+      if ((element.name == "tag" && element.attributes.k == "highway") ||
+          (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water")) 
+            filteredWays.push(way);
     }
   }
 
-  console.log("\tRoad way extraction complete.");
+  console.log("\tWay extraction complete.");
 }
 
-// Cache roadways
-if (!process.argv.includes("--noCacheWrite") && !cachedRoadWaysAvailable)
-fs.writeFile(".osmToJS_roadWays.json", JSON.stringify(roadWays), function(err) {
+// Cache ways
+if (!process.argv.includes("--noCacheWrite") && !cachedwaysAvailable)
+fs.writeFile(".osmToJS_ways.json", JSON.stringify(filteredWays), function(err) {
   if(err) {
       return console.log(err);
   }
-  console.log("Background process: Roadways have been cached");
+  console.log("Background process: Ways have been cached");
 }); 
 
-// Extract nodes for each road way and creating paths
-var mapPoints2Darray = [];
-
+// Extract nodes for each way and creating paths
 console.log("Final stage - Generating DB...");
 
-var wLength = roadWays.length;
+var wLength = filteredWays.length;
 // var wLength = 100;
 for (let w = 0; w < wLength; w++) {
-  const roadWay = roadWays[w];
+  const way = filteredWays[w];
+  const wayType = getWayType(way);
+
+  if (wayType == "other") continue;
   
   // Extract node references to add
   var nodeRefsOfWay = [];
-  for (let e = 0; e < roadWay.elements.length; e++) {
-    const element = roadWay.elements[e];
+  for (let e = 0; e < way.elements.length; e++) {
+    const element = way.elements[e];
     if (element.name == "nd") nodeRefsOfWay.push(element.attributes.ref);
   }
 
@@ -129,17 +132,30 @@ for (let w = 0; w < wLength; w++) {
     mapPointsOfWay.push(mapPoint);
   }
 
-  // Generate path
-  let path = shared.Path.connectSequentialPoints(mapPointsOfWay, mapDatabase);
+  if (wayType == "highway") {
+    // Generate path
+    let path = shared.Path.connectSequentialPoints(mapPointsOfWay, mapDatabase);
 
-  // Extract all metadata of path
-  for (let e = 0; e < roadWay.elements.length; e++) {
-    const element = roadWay.elements[e];
-    if (element.name == "tag") 
-      path.metadata[element.attributes.k] = element.attributes.v;
+    // Extract all metadata of path
+    for (let e = 0; e < way.elements.length; e++) {
+      const element = way.elements[e];
+      if (element.name == "tag") 
+        path.metadata[element.attributes.k] = element.attributes.v;
+    }
+
+    mapDatabase.addMapObject(path);
+  } else if (wayType == "water") {
+    // Add mapPoints to DB and extract IDs
+    let mapPointIDs = [];
+    mapPointsOfWay.forEach(mapPoint => {
+      mapPointIDs.push(mapPoint.ID);
+      mapDatabase.addMapObject(mapPoint);
+    });
+
+    // Construct area and add to db
+    let waterArea = new shared.Area(mapPointIDs);
+    mapDatabase.addMapObject(waterArea);
   }
-
-  mapDatabase.addMapObject(path);
 
   process.stdout.cursorTo(0);
   process.stdout.write(`${Math.round((w/wLength)*10000)/100}% (${w}/${wLength}) of ways added to db.`);
@@ -176,4 +192,16 @@ function convertNodeToMapPoint(node) {
   var MapPoint = new shared.MapPoint(x, y);
 
   return MapPoint;
+}
+
+/**
+ * @returns {string} the type of way
+ */
+function getWayType(way) {
+  for (let i = 0; i < way.elements.length; i++) {
+    const element = way.elements[i];
+    if (element.name == "tag" && element.attributes.k == "highway") return "highway";
+    if (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water") return "water"; 
+  }
+  return "other";
 }

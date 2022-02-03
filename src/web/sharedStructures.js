@@ -93,6 +93,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         var pointIDs = Object.keys(db).filter(id => id.indexOf("POINT") == 0);
         var pathPartIDs = Object.keys(db).filter(id => id.indexOf("PART") == 0);
         var pathIDs = Object.keys(db).filter(id => id.indexOf("PATH") == 0);
+        var areaIDs = Object.keys(db).filter(id => id.indexOf("AREA") == 0);
 
         pointIDs.forEach(pointID => {
             let point = shared.MapPoint.mapPointFromObject(db[pointID]);
@@ -108,6 +109,11 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         pathIDs.forEach(pathID => {
             let path = shared.Path.pathFromObject(db[pathID]);
             database.addMapObject(path);
+        });
+
+        areaIDs.forEach(areaID => {
+            let area = shared.Area.areaFromObject(db[areaID]);
+            database.addMapObject(area);
         });
 
         return database;
@@ -355,5 +361,10 @@ shared.Area = class Area extends shared.MapDataObject {
         
         this.mapPointIDs = mapPointIDs;
         this.data = data;
+    }
+
+    static areaFromObject(object) {
+        let area = new shared.Area(object.mapPointIDs, object.data);
+        return area;
     }
 }

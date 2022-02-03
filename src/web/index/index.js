@@ -162,6 +162,11 @@ class CanvasState {
         }
         // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
 
+        for (let i = 0; i < this.database.areaIDs.length; i++) {
+            const areaID = this.database.areaIDs[i];
+            this.database.db[areaID].draw(this);
+        }
+
         if (debug_displayAreasDrawn) debug_displayAreasDrawnFunc();
     }
     
@@ -450,7 +455,7 @@ class MapPoint extends shared.MapPoint {
 
     /** Gets the x position relative to the canvas */
     get displayedX() {
-        return (this.x + canvasState.xTranslation) * canvasState.zoomLevel;
+        return (this.x + canvasState.xTranslation) * 1.5 * canvasState.zoomLevel;
     }
 
     /** Gets the y position relative to the canvas */
@@ -487,6 +492,33 @@ class MapPoint extends shared.MapPoint {
 
 // This is needed so that references to MapPoints in shared.js references MapPoints with the client functionality defined here
 shared.MapPoint = MapPoint;
+
+class Area extends shared.Area {
+    constructor (mapPointIDs, data={}) {
+        super();
+        
+        this.mapPointIDs = mapPointIDs;
+        this.data = data;
+    }
+
+    draw(canvasState) {
+        canvasState.ctx.fillStyle = "#8fafe3";
+        canvasState.ctx.beginPath();
+
+        for (let i = 0; i < this.mapPointIDs.length; i++) {
+            const mapPointID = this.mapPointIDs[i];
+            const mapPoint = canvasState.database.db[mapPointID];
+
+            if (i==0) canvasState.ctx.moveTo(mapPoint.displayedX, mapPoint.displayedY);
+            else canvasState.ctx.lineTo(mapPoint.displayedX, mapPoint.displayedY);
+        }
+
+        canvasState.ctx.closePath();
+        canvasState.ctx.fill();
+    }
+}
+
+shared.Area = Area;
 
 /**
  * Function called at page load to test some points on canvas

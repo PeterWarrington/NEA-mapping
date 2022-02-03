@@ -56,6 +56,11 @@ var debug_searchFilterCount = 0;
 
     databaseToReturn = filterByMapArea(req, res, databaseToReturn);
 
+    shared.database.getMapObjectsOfType("AREA").forEach(area => {
+        databaseToReturn.addMapObject(area);
+        area.mapPointIDs.forEach(mapPointID => databaseToReturn.addMapObject(shared.database.db[mapPointID]));
+    });
+    
     if (shared.debug_on) 
         logger.log(`Fully filtered database has ${databaseToReturn.getMapObjectsOfType("PATH").length} paths.`);
 

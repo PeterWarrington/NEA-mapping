@@ -53,13 +53,19 @@ var debug_searchFilterCount = 0;
             path.copyPathContentsToDB(shared.database, databaseToReturn);
             databaseToReturn.addMapObject(path);
         });
-
-    databaseToReturn = filterByMapArea(req, res, databaseToReturn);
-
+    
     shared.database.getMapObjectsOfType("AREA").forEach(area => {
         databaseToReturn.addMapObject(area);
         area.mapPointIDs.forEach(mapPointID => databaseToReturn.addMapObject(shared.database.db[mapPointID]));
     });
+
+    if (shared.debug_on)
+        logger.log(`Unfiltered database has ${databaseToReturn.getMapObjectsOfType("AREA").length} areas.`);
+
+    databaseToReturn = filterByMapArea(req, res, databaseToReturn);
+
+    if (shared.debug_on)
+        logger.log(`Filtered database has ${databaseToReturn.getMapObjectsOfType("AREA").length} areas.`);
     
     if (shared.debug_on) 
         logger.log(`Fully filtered database has ${databaseToReturn.getMapObjectsOfType("PATH").length} paths.`);
@@ -198,6 +204,30 @@ var debug_searchFilterCount = 0;
          path.startingPathPartID = resolvePathPartID(filteredDB, db, path.startingPathPartID);
          if (path.startingPathPartID)
             filteredDB.addMapObject(path);
+     }
+
+     // Filter areas to those that contain at least one node in viewed area
+     let rootAreas = db.getMapObjectsOfType("AREA");
+     for (let i = 0; i < rootAreas.length; i++) {
+         let area = new shared.Area(rootAreas[i].mapPointIDs, rootAreas[i].data);
+         area.ID = rootAreas[i].ID;
+
+         let idsToRemove = [];
+         let areaAddedToDB = false;
+
+         for (let j = 0; j < area.mapPointIDs.length; j++) {
+             const mapPointID = area.mapPointIDs[j];
+             if (filteredDB.db[mapPointID] != undefined) {
+                if (!areaAddedToDB)
+                    filteredDB.addMapObject(area);
+                areaAddedToDB = true;
+             } else {
+                idsToRemove.push(mapPointID);
+             }
+         }
+
+         // Replace array with mapPointIDs that are not in idsToRemove
+         area.mapPointIDs = area.mapPointIDs.filter(mapPointID => idsToRemove.indexOf(mapPointID) == -1);
      }
 
      return filteredDB;

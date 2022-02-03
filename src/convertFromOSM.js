@@ -137,23 +137,23 @@ for (let w = 0; w < wLength; w++) {
     let path = shared.Path.connectSequentialPoints(mapPointsOfWay, mapDatabase);
 
     // Extract all metadata of path
-    for (let e = 0; e < way.elements.length; e++) {
-      const element = way.elements[e];
-      if (element.name == "tag") 
-        path.metadata[element.attributes.k] = element.attributes.v;
-    }
+    Object.assign(path.metadata, extractMetadata(way));
 
     mapDatabase.addMapObject(path);
   } else if (wayType == "water") {
     // Add mapPoints to DB and extract IDs
     let mapPointIDs = [];
     mapPointsOfWay.forEach(mapPoint => {
+      mapPoint = mapDatabase.addMapObject(mapPoint);
       mapPointIDs.push(mapPoint.ID);
-      mapDatabase.addMapObject(mapPoint);
     });
 
     // Construct area and add to db
     let waterArea = new shared.Area(mapPointIDs);
+
+    // Add metadata to area mapObject
+    Object.assign(waterArea.metadata, extractMetadata(way));
+
     mapDatabase.addMapObject(waterArea);
   }
 
@@ -204,4 +204,21 @@ function getWayType(way) {
     if (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water") return "water"; 
   }
   return "other";
+}
+
+/**
+ * Extracts the metadata for a simple db way.
+ * @param {object} way way from simple db
+ * @returns object containing tag key:value pairs
+ */
+function extractMetadata(way) {
+  let metadata = {};
+
+  for (let e = 0; e < way.elements.length; e++) {
+    const element = way.elements[e];
+    if (element.name == "tag") 
+      metadata[element.attributes.k] = element.attributes.v;
+  }
+
+  return metadata;
 }

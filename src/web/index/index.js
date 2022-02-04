@@ -502,19 +502,28 @@ class Area extends shared.Area {
     }
 
     draw(canvasState) {
-        canvasState.ctx.fillStyle = "#8fafe3";
-        canvasState.ctx.beginPath();
-
-        for (let i = 0; i < this.mapPointIDs.length; i++) {
-            const mapPointID = this.mapPointIDs[i];
-            const mapPoint = canvasState.database.db[mapPointID];
-
-            if (i==0) canvasState.ctx.moveTo(mapPoint.displayedX, mapPoint.displayedY);
-            else canvasState.ctx.lineTo(mapPoint.displayedX, mapPoint.displayedY);
+        // Only draw if a point of the area is on screen
+        let isApointOnScreen = false;
+        for (let i = 0; !isApointOnScreen && i < this.mapPointIDs.length; i++) {
+            const mapPoint = canvasState.database.db[this.mapPointIDs[i]];
+            if (!isApointOnScreen) isApointOnScreen = areCoordsOnScreen(mapPoint.displayedX, mapPoint.displayedY, canvasState);
         }
 
-        canvasState.ctx.closePath();
-        canvasState.ctx.fill();
+        if (isApointOnScreen){
+            canvasState.ctx.fillStyle = "#8fafe3";
+            canvasState.ctx.beginPath();
+
+            for (let i = 0; i < this.mapPointIDs.length; i++) {
+                const mapPointID = this.mapPointIDs[i];
+                const mapPoint = canvasState.database.db[mapPointID];
+    
+                if (i==0) canvasState.ctx.moveTo(mapPoint.displayedX, mapPoint.displayedY);
+                else canvasState.ctx.lineTo(mapPoint.displayedX, mapPoint.displayedY);
+            }
+    
+            canvasState.ctx.closePath();
+            canvasState.ctx.fill();
+        }
     }
 }
 

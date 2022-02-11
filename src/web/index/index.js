@@ -208,8 +208,8 @@ class CanvasState {
             width: (getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel
         }
 
-        // Test url (no map area): http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&noMapAreaFilter=true
-        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
+        // Test url (no map area): http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22]&noMapAreaFilter=true
+        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
         this.httpReq.send();
     }
 

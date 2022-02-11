@@ -1,8 +1,8 @@
 fs = require('fs');
 logger = new (require('../logging.js').Logger)();
 
-// Used to count number of items filtered via highways for debugging
-var debug_highwayFilterCount = 0;
+// Used to count number of items filtered via pathTypes for debugging
+var debug_pathTypeFilterCount = 0;
 // Used to count number of items filtered via search term for debugging
 var debug_searchFilterCount = 0;
 
@@ -17,8 +17,7 @@ var debug_searchFilterCount = 0;
 
     if (shared.debug_on) 
         logger.log(`Root database has ${Object.keys(shared.database.db).length} items.`);
-
-    // Get highways from db:
+        
     let startTime = Date.now();
 
     // Filter everything with search term
@@ -39,8 +38,8 @@ var debug_searchFilterCount = 0;
         var meetsCriteria = true;
 
         // These filter function calls return undefined if unsuccesful, where bool && undefined == undefined
-        // Filter by highways
-        meetsCriteria = meetsCriteria && filterByHighway(req, res, path, shared);
+        // Filter by pathTypes
+        meetsCriteria = meetsCriteria && filterByPathType(req, res, path, shared);
 
         if (meetsCriteria) {
             paths.push(path)
@@ -48,8 +47,8 @@ var debug_searchFilterCount = 0;
     }
 
     if (shared.debug_on) {
-        logger.log(`Highway filtered database has ${debug_highwayFilterCount} paths.`);
-        logger.log(`Highway and search filtered database has ${debug_searchFilterCount} paths.`)
+        logger.log(`PathType filtered database has ${debug_pathTypeFilterCount} paths.`);
+        logger.log(`PathType and search filtered database has ${debug_searchFilterCount} paths.`)
     }
 
     if (paths.length == rootDBpaths.length)
@@ -80,27 +79,27 @@ var debug_searchFilterCount = 0;
     res.send(databaseToReturn);
  }
 
- function filterByHighway(req, res, path, shared) {
-    var highwayError = false;
-    // var acceptedHighways = ["motorway","primary","trunk"];
-    var acceptedHighways = [];
+ function filterByPathType(req, res, path, shared) {
+    var pathTypeError = false;
+    // var acceptedPathTypes = ["motorway","primary","trunk"];
+    var acceptedPathTypes = [];
 
     try {
-        if (req.query.highways != undefined)
-        acceptedHighways = JSON.parse(req.query.highways);
+        if (req.query.pathTypes != undefined)
+        acceptedPathTypes = JSON.parse(req.query.pathTypes);
     } catch {
-        highwayError = true;
+        pathTypeError = true;
     }
 
-    if (highwayError || !(acceptedHighways instanceof Array)) 
-        return throwParamError("INVALID_PARAM: highways (dbFromQuery)", res);
+    if (pathTypeError || !(acceptedPathTypes instanceof Array)) 
+        return throwParamError("INVALID_PARAM: pathTypes (dbFromQuery)", res);
 
 
-    let result = (acceptedHighways.length == 0
-        || acceptedHighways.includes(path.metadata.pathType["second_level_descriptor"])
-        || acceptedHighways.includes(path.metadata.pathType["first_level_descriptor"]));
+    let result = (acceptedPathTypes.length == 0
+        || acceptedPathTypes.includes(path.metadata.pathType["second_level_descriptor"])
+        || acceptedPathTypes.includes(path.metadata.pathType["first_level_descriptor"]));
 
-    if (shared.debug_on && result) debug_highwayFilterCount++;
+    if (shared.debug_on && result) debug_pathTypeFilterCount++;
 
     return result;
  }

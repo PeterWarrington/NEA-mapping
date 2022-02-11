@@ -74,12 +74,9 @@ if (cachedwaysAvailable) {
   console.log("Extracting ways...");
   for (let w = 0; w < allWays.length; w++) {
     const way = allWays[w];
-    for (let e = 0; e < way.elements.length; e++) {
-      const element = way.elements[e];
-      if ((element.name == "tag" && element.attributes.k == "highway") ||
-          (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water")) 
-            filteredWays.push(way);
-    }
+    const wayType = getWayType(way);
+    if (wayType != "no_way" && wayType != "other") 
+          filteredWays.push(way);
   }
 
   console.log("\tWay extraction complete.");
@@ -132,15 +129,21 @@ for (let w = 0; w < wLength; w++) {
     mapPointsOfWay.push(mapPoint);
   }
 
-  if (wayType == "highway") {
+  if (wayType == "highway" || wayType == "water_way") {
     // Generate path
     let path = shared.Path.connectSequentialPoints(mapPointsOfWay, mapDatabase);
 
     // Extract all metadata of path
-    Object.assign(path.metadata, extractMetadata(way));
+    Object.assign(path.metadata, {"osm": extractMetadata(way)});
+
+    // Add path type
+    if (wayType == "highway")
+      path.metadata.pathType = {"first_level_descriptor": "highway", "second_level_descriptor": path.metadata.osm.highway};
+    else if (wayType == "water_way")
+      path.metadata.pathType = {"first_level_descriptor": "water_way", "second_level_descriptor": path.metadata.osm.waterway};
 
     mapDatabase.addMapObject(path);
-  } else if (wayType == "water") {
+  } else if (wayType == "water_area") {
     // Add mapPoints to DB and extract IDs
     let mapPointIDs = [];
     mapPointsOfWay.forEach(mapPoint => {
@@ -198,10 +201,13 @@ function convertNodeToMapPoint(node) {
  * @returns {string} the type of way
  */
 function getWayType(way) {
+  if (way.name != "way") return "no_way";
+
   for (let i = 0; i < way.elements.length; i++) {
     const element = way.elements[i];
     if (element.name == "tag" && element.attributes.k == "highway") return "highway";
-    if (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water") return "water"; 
+    if (element.name == "tag" && element.attributes.k == "waterway") return "water_way";
+    if (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water_area") return "water_area"; 
   }
   return "other";
 }

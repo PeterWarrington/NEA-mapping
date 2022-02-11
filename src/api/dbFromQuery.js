@@ -97,7 +97,8 @@ var debug_searchFilterCount = 0;
 
 
     let result = (acceptedHighways.length == 0
-        || acceptedHighways.includes(path.metadata.highway));
+        || acceptedHighways.includes(path.metadata.pathType["second_level_descriptor"])
+        || acceptedHighways.includes(path.metadata.pathType["first_level_descriptor"]));
 
     if (shared.debug_on && result) debug_highwayFilterCount++;
 

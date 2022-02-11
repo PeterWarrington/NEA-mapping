@@ -240,6 +240,19 @@ class CanvasState {
         // Update map data update ongoing flag
         canvasState.mapDataUpdateOngoing = false;
     }
+
+    /**
+     * Initiates a search
+     * @param {string} input search term
+     */
+    search = (input) => {
+        let http = new XMLHttpRequest();
+        http.addEventListener("load", () => {
+            console.log(http.responseText);
+        });
+        http.open("GET", `http://localhost/api/GetDBfromQuery?searchTerm="${input}"&noMapAreaFilter=true`);
+        http.send();
+    }
 }
 
 class Path extends shared.Path {
@@ -535,6 +548,13 @@ shared.Area = Area;
 function MapTest() {
     // Create canvas state
     canvasState = new CanvasState();
+
+    // Set up search event listener
+    document.getElementById("search_input").addEventListener("keypress", function (e) {
+        if (e.key == "Enter") {
+            canvasState.search(document.getElementById("search_input").value);
+        }
+    });
 
     // Import test nodes
     // Translate graph so does not overlap header

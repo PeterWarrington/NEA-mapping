@@ -21,8 +21,18 @@ var debug_searchFilterCount = 0;
     // Get highways from db:
     let startTime = Date.now();
 
-    paths = [];
+    // Filter everything with search term
+    if (req.query.searchTerm != undefined && req.query.searchTerm != false) {
+        let dbObjects = Object.values(shared.database.db);
+        let dbObjectsLength = dbObjects.length;
+        for (let i = 0; i < dbObjectsLength; i++) {
+            const mapObject = dbObjects[i];
+            if (filterBySearchTerm(req, res, mapObject, shared)) databaseToReturn.addMapObject(mapObject);
+        }
+    }
 
+    // Filter paths
+    paths = [];
     rootDBpaths = shared.database.getMapObjectsOfType("PATH");
     for (let i = 0; i < rootDBpaths.length; i++) {
         const path = rootDBpaths[i];
@@ -31,9 +41,6 @@ var debug_searchFilterCount = 0;
         // These filter function calls return undefined if unsuccesful, where bool && undefined == undefined
         // Filter by highways
         meetsCriteria = meetsCriteria && filterByHighway(req, res, path, shared);
-
-        // Filter by search term
-        meetsCriteria = meetsCriteria && filterBySearchTerm(req, res, path, shared);
 
         if (meetsCriteria) {
             paths.push(path)
@@ -97,13 +104,13 @@ var debug_searchFilterCount = 0;
     return result;
  }
 
- function filterBySearchTerm(req, res, path, shared) {
+ function filterBySearchTerm(req, res, mapObject, shared) {
     var searchTerm = false;
     if (req.query.searchTerm != false)
         searchTerm = req.query.searchTerm;
     
     let result = (!searchTerm || searchTerm == undefined ||
-        JSON.stringify(path.metadata).includes(searchTerm));
+        JSON.stringify(mapObject.metadata).toLowerCase().includes(searchTerm.toLowerCase()));
 
     if (shared.debug_on && result) debug_searchFilterCount++;
 

@@ -209,7 +209,7 @@ class CanvasState {
         }
 
         // Test url (no map area): http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22]&noMapAreaFilter=true
-        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
+        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?highways=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
         this.httpReq.send();
     }
 
@@ -364,7 +364,16 @@ class Path extends shared.Path {
      * Apply a key to the style of the path. Called while drawing.
      */
     getPathStyle() {
-        switch (this.metadata.highway) {
+        switch (this.metadata.pathType["first_level_descriptor"]) {
+            case "water_way":
+                this.data.borderWidth = 4;
+                this.data.lineWidth = 0;
+                this.data.borderStyle = "#b0e1f7"; 
+                break;
+            default:
+                break;
+        }
+        switch (this.metadata.pathType["second_level_descriptor"]) {
             case "motorway":
               this.data.borderWidth = 4;
               this.data.lineWidth = 1;

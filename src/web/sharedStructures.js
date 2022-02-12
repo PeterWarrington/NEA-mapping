@@ -365,6 +365,8 @@ shared.Area = class Area extends shared.MapDataObject {
 
     static areaFromObject(object) {
         let area = new shared.Area(object.mapPointIDs, object.data);
+        area.ID = object.ID;
+        area.metadata = object.metadata;
         return area;
     }
 }

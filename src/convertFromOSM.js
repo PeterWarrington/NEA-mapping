@@ -143,7 +143,7 @@ for (let w = 0; w < wLength; w++) {
       path.metadata.pathType = {"first_level_descriptor": "water_way", "second_level_descriptor": path.metadata.osm.waterway};
 
     mapDatabase.addMapObject(path);
-  } else if (wayType == "water_area") {
+  } else if (wayType == "water_area" || wayType == "land") {
     // Add mapPoints to DB and extract IDs
     let mapPointIDs = [];
     mapPointsOfWay.forEach(mapPoint => {
@@ -152,12 +152,17 @@ for (let w = 0; w < wLength; w++) {
     });
 
     // Construct area and add to db
-    let waterArea = new shared.Area(mapPointIDs);
+    let area = new shared.Area(mapPointIDs);
 
     // Add metadata to area mapObject
-    Object.assign(waterArea.metadata, extractMetadata(way));
+    Object.assign(area.metadata, {"osm": extractMetadata(way)});
+    area.metadata.areaType = {"first_level_descriptor": wayType};
+    if (wayType == "water_area" && area.metadata.osm.waterway != undefined)
+      area.metadata.areaType["second_level_descriptor"] = area.metadata.osm.waterway;
+    else if (wayType == "land" && area.metadata.osm.landuse != undefined)
+      area.metadata.areaType["second_level_descriptor"] = area.metadata.osm.landuse;
 
-    mapDatabase.addMapObject(waterArea);
+    mapDatabase.addMapObject(area);
   }
 
   process.stdout.cursorTo(0);
@@ -207,6 +212,7 @@ function getWayType(way) {
     const element = way.elements[i];
     if (element.name == "tag" && element.attributes.k == "highway") return "highway";
     if (element.name == "tag" && element.attributes.k == "waterway") return "water_way";
+    if (element.name == "tag" && element.attributes.k == "landuse") return "land";
     if (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water_area") return "water_area"; 
   }
   return "other";

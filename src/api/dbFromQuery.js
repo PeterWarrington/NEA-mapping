@@ -218,6 +218,7 @@ var debug_searchFilterCount = 0;
      for (let i = 0; i < rootAreas.length; i++) {
          let area = new shared.Area(rootAreas[i].mapPointIDs, rootAreas[i].data);
          area.ID = rootAreas[i].ID;
+         area.metadata = rootAreas[i].metadata;
 
          let idsToRemove = [];
          let areaAddedToDB = false;
@@ -228,10 +229,16 @@ var debug_searchFilterCount = 0;
                 if (!areaAddedToDB)
                     filteredDB.addMapObject(area);
                 areaAddedToDB = true;
-             } else {
-                idsToRemove.push(mapPointID);
              }
          }
+
+         // Add those nodes that are not in displayed region but are part of Area
+         if (areaAddedToDB)
+         for (let j = 0; j < area.mapPointIDs.length; j++) {
+            const mapPointID = area.mapPointIDs[j];
+            if (filteredDB.db[mapPointID] == undefined)
+                filteredDB.addMapObject(db.db[mapPointID]);
+        }
 
          // Replace array with mapPointIDs that are not in idsToRemove
          area.mapPointIDs = area.mapPointIDs.filter(mapPointID => idsToRemove.indexOf(mapPointID) == -1);

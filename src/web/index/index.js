@@ -33,6 +33,8 @@ class CanvasState {
     mapDataUpdateQueued = false;
     /** Contains details about last/current area drawn to screen */
     area
+    /** Indicates wether stroke is on */
+    stokeOn = false;
 
     /** Stores details of areas drawn to screen */
     areasDrawn = []
@@ -543,7 +545,7 @@ class Area extends shared.Area {
         }
 
         if (isApointOnScreen){
-            this.#setAreaDrawStyle(canvasState.ctx);
+            this.#setAreaDrawStyle(canvasState);
             canvasState.ctx.beginPath();
 
             for (let i = 0; i < this.mapPointIDs.length; i++) {
@@ -556,6 +558,10 @@ class Area extends shared.Area {
     
             canvasState.ctx.closePath();
             canvasState.ctx.fill();
+            if (canvasState.strokeOn) {
+                canvasState.ctx.stroke();
+                canvasState.strokeOn = false;
+            }
         }
     }
 
@@ -564,17 +570,35 @@ class Area extends shared.Area {
      * to be called before drawing this area.
      * @param {2D canvas context thing from HTML standard} ctx 
      */
-    #setAreaDrawStyle(ctx) {
+    #setAreaDrawStyle(canvasState) {
+        let ctx = canvasState.ctx;
+
         if (this.metadata.areaType != undefined && this.metadata.areaType["first_level_descriptor"] != undefined)
         switch (this.metadata.areaType["first_level_descriptor"]) {
             case "water_area":
                 ctx.fillStyle = "#8fafe3";
                 break;
             case "land":
-                ctx.fillStyle = "#9c9c9c";
+                ctx.fillStyle = "#bfbfbf";
                 break;
             default:
                 ctx.fillStyle = "#ffffff";
+                break;
+        }
+
+        if (this.metadata.areaType != undefined && this.metadata.areaType["second_level_descriptor"] != undefined)
+        switch (this.metadata.areaType["second_level_descriptor"]) {
+            case "allotments":
+            case "farmland":
+            case "farmyard":
+            case "flowerbed":
+            case "forest":
+            case "meadow":
+            case "orchard":
+            case "vineyard":
+                ctx.fillStyle = "#ace0a1";
+                break;
+            default:
                 break;
         }
     }

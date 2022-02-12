@@ -149,6 +149,21 @@ class CanvasState {
         // Fill background
         this.ctx.fillStyle = "#e6e6e6";
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        let topLayerAreas = [];
+        // Draw lower layer areas, adding lower layer areas to topLayerAreas to draw later
+        for (let i = 0; i < this.database.areaIDs.length; i++) {
+            const areaID = this.database.areaIDs[i];
+            const area = this.database.db[areaID];
+            if (area.metadata.areaType["first_level_descriptor"] == "land") // TODO: Create "layer" property and read from this instead
+                area.draw(this);
+            else
+                topLayerAreas.push(area);
+        }
+        for (let i = 0; i < topLayerAreas.length; i++) {
+            const area = topLayerAreas[i];
+            area.draw(this);
+        }
         
         if (this.testMapPoints != null) {
             // Halt drawing, call test draw function instead, typical drawing will not be executed
@@ -161,11 +176,6 @@ class CanvasState {
             this.database.db[pathID].plotLine(this);
         }
         // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
-
-        for (let i = 0; i < this.database.areaIDs.length; i++) {
-            const areaID = this.database.areaIDs[i];
-            this.database.db[areaID].draw(this);
-        }
 
         if (debug_displayAreasDrawn) debug_displayAreasDrawnFunc();
     }
@@ -217,6 +227,7 @@ class CanvasState {
         // Request returns db as uninstanciated object
         // we need to convert this
         var simpleDB = JSON.parse(canvasState.httpReq.response);
+        console.log(canvasState.httpReq.response);
 
         if(shared.debug_on) 
             console.log(`Received JSON has ${Object.keys(simpleDB.db).length} items.`)
@@ -532,7 +543,7 @@ class Area extends shared.Area {
         }
 
         if (isApointOnScreen){
-            canvasState.ctx.fillStyle = "#8fafe3";
+            this.#setAreaDrawStyle(canvasState.ctx);
             canvasState.ctx.beginPath();
 
             for (let i = 0; i < this.mapPointIDs.length; i++) {
@@ -545,6 +556,26 @@ class Area extends shared.Area {
     
             canvasState.ctx.closePath();
             canvasState.ctx.fill();
+        }
+    }
+
+    /**
+     * Sets properties of how an area should be drawn to screen (such as fill colour) 
+     * to be called before drawing this area.
+     * @param {2D canvas context thing from HTML standard} ctx 
+     */
+    #setAreaDrawStyle(ctx) {
+        if (this.metadata.areaType != undefined && this.metadata.areaType["first_level_descriptor"] != undefined)
+        switch (this.metadata.areaType["first_level_descriptor"]) {
+            case "water_area":
+                ctx.fillStyle = "#8fafe3";
+                break;
+            case "land":
+                ctx.fillStyle = "#9c9c9c";
+                break;
+            default:
+                ctx.fillStyle = "#ffffff";
+                break;
         }
     }
 }

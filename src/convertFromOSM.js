@@ -53,13 +53,18 @@ if (cachedNodedataAvailable) {
 console.log("\tWay and node extraction complete.");
 
 // Cache nodes
-if (!process.argv.includes("--noCacheWrite") && !cachedNodedataAvailable)
-fs.writeFile(".osmToJS_nodes.json", JSON.stringify(nodes), function(err) {
-  if(err) {
-      return console.log(err);
-  }
-  console.log("Background process: Nodes have been cached");
-});
+try {
+  if (!process.argv.includes("--noCacheWrite") && !cachedNodedataAvailable)
+  fs.writeFile(".osmToJS_nodes.json", JSON.stringify(nodes), function(err) {
+    if(err) {
+        return console.log(err);
+    }
+    console.log("Background process: Nodes have been cached");
+  });
+} catch (e) {
+  // Error most likely occurs because osmData is too large for JSON.stringify
+  console.log(`Unable to cache nodes. ${e.name}: ${e.message}. Continuing anyway...`);
+}
 
 // Extract ways with <tag k="highway" ...>
 
@@ -83,13 +88,18 @@ if (cachedwaysAvailable) {
 }
 
 // Cache ways
-if (!process.argv.includes("--noCacheWrite") && !cachedwaysAvailable)
-fs.writeFile(".osmToJS_ways.json", JSON.stringify(filteredWays), function(err) {
-  if(err) {
-      return console.log(err);
-  }
-  console.log("Background process: Ways have been cached");
-}); 
+try {
+  if (!process.argv.includes("--noCacheWrite") && !cachedwaysAvailable)
+  fs.writeFile(".osmToJS_ways.json", JSON.stringify(filteredWays), function(err) {
+    if(err) {
+        return console.log(err);
+    }
+    console.log("Background process: Ways have been cached");
+  }); 
+} catch (e) {
+  // Error most likely occurs because osmData is too large for JSON.stringify
+  console.log(`Unable to cache ways. ${e.name}: ${e.message}. Continuing anyway...`);
+}
 
 // Extract nodes for each way and creating paths
 console.log("Final stage - Generating DB...");
@@ -198,7 +208,7 @@ function convertNodeToMapPoint(node) {
   // Meaning we have to use triganometry, as lat and lon are
   // defined in terms of angle
 
-  // Radius of earth in km
+  // Radius of earth
   var radius = 6371;
 
   // Convert longitude to x

@@ -1,4 +1,4 @@
-const fs = require('fs')
+const fs = require('fs');
 var convert = require('xml-js');
 var shared = require('./shared/sharedStructures.js').shared;
 
@@ -173,12 +173,22 @@ console.log("\nDatabase generated. Writing to file...");
 
 // Write database to file
 var dbFilename = `db-${Date.now()}.json`;
-fs.writeFile(dbFilename, JSON.stringify(mapDatabase), function(err) {
-  if(err) {
-      return console.log(err);
+try {
+  let dbKeys = Object.keys(mapDatabase.db);
+  let writeStream = fs.createWriteStream(dbFilename);
+
+  writeStream.write(`{"db":{`);
+  for (let i = 0; i < dbKeys.length; i++) {
+    const dbKey = dbKeys[i];
+    writeStream.write(`"${dbKey}":${JSON.stringify(mapDatabase.db[dbKey])}`)
+    if (i+1 < dbKeys.length) writeStream.write(`,`);
   }
+  writeStream.write("}}");
+  writeStream.end();
   console.log(`Map database has been saved to ${dbFilename}!`);
-}); 
+} catch (err) {
+  console.log(err);
+}
 
 function convertNodeToMapPoint(node) {
   if (node.attributes == undefined || node.attributes.lon == undefined || node.attributes.lat == undefined)
@@ -212,8 +222,8 @@ function getWayType(way) {
     const element = way.elements[i];
     if (element.name == "tag" && element.attributes.k == "highway") return "highway";
     if (element.name == "tag" && element.attributes.k == "waterway") return "water_way";
+    if (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water") return "water_area"; 
     if (element.name == "tag" && element.attributes.k == "landuse") return "land";
-    if (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water_area") return "water_area"; 
   }
   return "other";
 }

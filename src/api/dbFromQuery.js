@@ -191,26 +191,28 @@ var debug_searchFilterCount = 0;
             filteredDB.addMapObject(part);
      }
 
-     // Resolve path parts that point to path parts not in filtered list
-     var filteredParts = filteredDB.getMapObjectsOfType("PART");
-     for (let i = 0; i < filteredParts.length; i++) {
-        const part = filteredParts[i];
-        if (part.nextPathPartIDs.length != 0) {
-            var pathPartID = resolvePathPartID(filteredDB, db, part.nextPathPartIDs[0]);
-
-            if (pathPartID)
-                part.nextPathPartIDs[0] = pathPartID;
-            else part.nextPathPartIDs = [];
-        }
-     }
-
-     // Resolve starting path parts of paths
+     // Add whole path, its parts and points to DB if part of path is in DB
      var rootDBpaths = db.getMapObjectsOfType("PATH");
      for (let i = 0; i < rootDBpaths.length; i++) {
          const path = shared.Path.pathFromObject(rootDBpaths[i]);
-         path.startingPathPartID = resolvePathPartID(filteredDB, db, path.startingPathPartID);
-         if (path.startingPathPartID)
+
+         let resolvedPathPart = resolvePathPartID(filteredDB, db, path.startingPathPartID);
+         let partOfPathInFilteredDB = resolvedPathPart != false;
+
+         if (partOfPathInFilteredDB) {
+            // Iterate through path parts, adding point and path part to DB before adding path
+            let currentPathPartID = path.startingPathPartID;
+            let getCurrentPathPart = () => db.db[currentPathPartID];
+            let getCurrentPointID = () => getCurrentPathPart().pointID;
+            do {
+                if (filteredDB.db[getCurrentPointID()] == undefined) {
+                    filteredDB.addMapObject(db.db[getCurrentPointID()]);
+                }
+                filteredDB.addMapObject(getCurrentPathPart());
+                currentPathPartID = getCurrentPathPart().nextPathPartIDs[0];
+            } while (getCurrentPathPart() != undefined);
             filteredDB.addMapObject(path);
+         }
      }
 
      // Filter areas to those that contain at least one node in viewed area
@@ -247,6 +249,13 @@ var debug_searchFilterCount = 0;
      return filteredDB;
  }
 
+ /**
+  * If a pathPart contains a point that isn't in filteredDB, return the next pathPartID in chain that is.
+  * @param {*} filteredDB 
+  * @param {*} db 
+  * @param {*} pathPartID 
+  * @returns {string} pathPartID
+  */
  function resolvePathPartID(filteredDB, db, pathPartID) {
     while (filteredDB.db[pathPartID] == undefined) {
         if (db.db[pathPartID].nextPathPartIDs.length != 0)

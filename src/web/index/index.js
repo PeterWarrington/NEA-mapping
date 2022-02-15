@@ -220,10 +220,24 @@ class CanvasState {
             width: (getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel
         }
 
-        let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
-        let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
-        this.httpReq.open("GET", normalURL);
-        this.httpReq.send();
+        // Check map area hasn't already been drawn
+        let hasBeenDrawn = false;
+        for (let i = 0; i < this.areasDrawn.length; i++) {
+            const areaDrawn = this.areasDrawn[i];
+            hasBeenDrawn = hasBeenDrawn || 
+                (canvasState.area.x >= areaDrawn.x && canvasState.area.x + canvasState.area.width <= areaDrawn.x + areaDrawn.width 
+                    && canvasState.area.y >= areaDrawn.y && canvasState.area.y + canvasState.area.height <= areaDrawn.y + areaDrawn.height)
+            if (hasBeenDrawn) break;
+        }
+
+        if (!hasBeenDrawn) {
+            let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
+            let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
+            this.httpReq.open("GET", normalURL);
+            this.httpReq.send();
+        } else {
+            this.mapDataUpdateOngoing = false;
+        }
     }
 
     mapDataReceiveFunc = () => {

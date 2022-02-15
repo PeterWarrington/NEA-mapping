@@ -25,3 +25,12 @@ html, body {
     width: 15px;
     position: absolute;
 }
+#loading-indicator-container {
+    position: absolute;
+    padding: 5pt;
+    background: #fff;
+    right: 0px;
+}
+#loading-indicator {
+    width: 35px;
+}

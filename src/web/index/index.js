@@ -129,10 +129,10 @@ class CanvasState {
      * @param {int} multiplier The multiplier to change the zoom by, normally either -1 or 1
      */
     zoom(multiplier) {
-        let zoomChange = 0.1 * multiplier;
-        if (this.zoomLevel + zoomChange < 0.1)
+        let zoomChange = 1 + (0.3 * multiplier);
+        if (this.zoomLevel + zoomChange < 0)
             return;
-        this.zoomLevel += zoomChange;
+        this.zoomLevel *= zoomChange;
 
         this.draw();
         this.updateMapData();
@@ -235,6 +235,9 @@ class CanvasState {
             let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
             this.httpReq.open("GET", normalURL);
             this.httpReq.send();
+
+            // Display loading indicator
+            document.getElementById("loading-indicator-container").style.display = "block";
         } else {
             this.mapDataUpdateOngoing = false;
         }
@@ -266,6 +269,9 @@ class CanvasState {
         
         // Update map data update ongoing flag
         canvasState.mapDataUpdateOngoing = false;
+
+        // Hide loading indicator
+        document.getElementById("loading-indicator-container").style.display = "none";
     }
 
     /**
@@ -643,11 +649,11 @@ function MapTest() {
     canvasState.yTranslation = -7349.380475070653;
     canvasState.zoomLevel =  0.5000000000000001;
 
-    // Display loading message.
+    // Load correct canvas width
     canvasState.updateCanvasWidth();
-    canvasState.ctx.fillStyle = "#878787";
-    canvasState.ctx.font = `20pt sans-serif`;
-    canvasState.ctx.fillText("Loading map data...", 70, 110);
+
+    // Display blank canvas
+    canvasState.draw();
 
     // Get test db from server
     canvasState.httpReq = new XMLHttpRequest();

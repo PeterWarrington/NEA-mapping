@@ -190,12 +190,15 @@ try {
   writeStream.write(`{"db":{`);
   for (let i = 0; i < dbKeys.length; i++) {
     const dbKey = dbKeys[i];
-    writeStream.write(`"${dbKey}":${JSON.stringify(mapDatabase.db[dbKey])}`)
+    writeStream.write(`"${dbKey}":${JSON.stringify(mapDatabase.db[dbKey])}`);
     if (i+1 < dbKeys.length) writeStream.write(`,`);
+
+    process.stdout.cursorTo(0);
+    process.stdout.write(`${Math.round((i/dbKeys.length)*10000)/100}% (${i}/${dbKeys.length}) database items written to file.`);
   }
   writeStream.write("}}");
   writeStream.end();
-  console.log(`Map database has been saved to ${dbFilename}!`);
+  console.log(`\nMap database has been saved to ${dbFilename}!`);
 } catch (err) {
   console.log(err);
 }
@@ -207,15 +210,16 @@ function convertNodeToMapPoint(node) {
   // We have to convert latitude and longitude to x,y coordinates
   // Meaning we have to use triganometry, as lat and lon are
   // defined in terms of angle
+  // This uses the mercator projection as defined at https://gis.stackexchange.com/a/314225 CC BY-SA 4.0
 
   // Radius of earth
   var radius = 6371;
 
   // Convert longitude to x
-  var x = (Math.cos(node.attributes.lon) * radius);
+  var x = radius * (node.attributes.lon);
   
   // Convert latitude to y
-  var y = (Math.sin(node.attributes.lat) * radius);
+  var y = radius * Math.log(Math.abs(Math.tan((Math.PI/4) + (node.attributes.lat / 2))));
 
   var MapPoint = new shared.MapPoint(x, y);
 

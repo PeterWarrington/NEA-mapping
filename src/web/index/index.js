@@ -220,8 +220,9 @@ class CanvasState {
             width: (getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel
         }
 
-        // Test url (no map area): http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22]&noMapAreaFilter=true
-        this.httpReq.open("GET", `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`);
+        let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
+        let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
+        this.httpReq.open("GET", normalURL);
         this.httpReq.send();
     }
 
@@ -229,7 +230,6 @@ class CanvasState {
         // Request returns db as uninstanciated object
         // we need to convert this
         var simpleDB = JSON.parse(canvasState.httpReq.response);
-        console.log(canvasState.httpReq.response);
 
         if(shared.debug_on) 
             console.log(`Received JSON has ${Object.keys(simpleDB.db).length} items.`)
@@ -625,8 +625,8 @@ function MapTest() {
     canvasState.mapTranslate(15, getAbsoluteHeight(document.getElementById("header")) + 15);
 
     // Drawing test overrides
-    canvasState.xTranslation =  -5474.999999999993;
-    canvasState.yTranslation = -3806.499999999995;
+    canvasState.xTranslation =  2292.886051499995;
+    canvasState.yTranslation = -7349.380475070653;
     canvasState.zoomLevel =  0.5000000000000001;
 
     // Display loading message.

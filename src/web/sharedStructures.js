@@ -78,7 +78,18 @@ shared.MapDataObjectDB = class MapDataObjectDB {
     }
 
     getMapObjectIDsOfType(type) {
-        return Object.keys(this.db).filter(id => id.indexOf(type) == 0);
+        switch (type) {
+            case "POINT":
+                return this.pointIDs;
+            case "PATH":
+                return this.pathIDs;
+            case "PART":
+                return this.partIDs;
+            case "AREA":
+                return this.areaIDs;
+            default:
+                return Object.keys(this.db).filter(id => id.indexOf(type) == 0);
+        }
     }
 
     /**

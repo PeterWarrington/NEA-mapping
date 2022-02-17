@@ -500,8 +500,8 @@ class Path extends shared.Path {
             let angle = Math.atan(changeInY/changeInX);
 
             let newLabel = {text: this.metadata.osm.ref, 
-                        x: startingPoint.pathPointDisplayX, 
-                        y: startingPoint.pathPointDisplayY, 
+                        x: startingPoint.pathPointDisplayX + 3, 
+                        y: startingPoint.pathPointDisplayY + 3, 
                         angle: angle};
 
             // Only draw if there isn't another label close by and the coords are on screen.

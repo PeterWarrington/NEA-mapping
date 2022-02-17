@@ -254,6 +254,21 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
 
         return pathPart;
     }
+
+    getPoint(database) {
+        return database.db[this.pointID];
+    }
+
+    getNextPart(database) {
+        if (this.nextPathPartIDs.length == 0) return false;
+        return database.db[this.nextPathPartIDs[0]]
+    }
+
+    getNextPoint(database) {
+        let nextPathPart = this.getNextPart(database);
+        if (!nextPathPart) return false;
+        return nextPathPart.getPoint();
+    }
 }
 
 shared.Path = class Path extends shared.MapDataObject {

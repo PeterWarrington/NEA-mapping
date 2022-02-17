@@ -1,5 +1,6 @@
 canvasState = undefined;
 debug_displayAreasDrawn = false;
+debug_drawAllHighwayLabelsTest = true;
 
 class CanvasState {
     /** The {CanvasRenderingContext2D} that is used on the canvas */
@@ -311,6 +312,13 @@ class Path extends shared.Path {
         if (canvasState == null) {
             console.warn("Canvas state not defined, unable to plot path.");
             return;
+        }
+
+        if (debug_drawAllHighwayLabelsTest && this.metadata.osm.ref != undefined) {
+            canvasState.ctx.font = '8pt serif';
+            canvasState.ctx.fillStyle = "red";
+            let startingPoint = canvasState.database.db[canvasState.database.db[this.startingPathPartID].pointID];
+            canvasState.ctx.fillText(this.metadata.osm.ref, startingPoint.pathPointDisplayX, startingPoint.pathPointDisplayY);
         }
 
         this.getPathStyle();

@@ -76,7 +76,20 @@ var debug_searchFilterCount = 0;
     if (shared.debug_on) 
         logger.log(`Fully filtered database has ${databaseToReturn.getMapObjectsOfType("PATH").length} paths.`);
 
-    res.send(databaseToReturn);
+
+    let returnString = "";
+
+    let dbKeys = Object.keys(databaseToReturn.db);
+    
+    returnString += `{"db":{`;
+    for (let i = 0; i < dbKeys.length; i++) {
+        const dbKey = dbKeys[i];
+        returnString += `"${dbKey}":${JSON.stringify(databaseToReturn.db[dbKey])}`;
+        if (i+1 < dbKeys.length) returnString += `,`;
+    }
+
+    returnString += "}}";
+    res.send(returnString);
  }
 
  function filterByPathType(req, res, path, shared) {

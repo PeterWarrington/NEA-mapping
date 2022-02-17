@@ -191,7 +191,8 @@ var debug_searchFilterCount = 0;
             if (!outsideOfExcludeArea) break;
         }
         
-        if (point.y >= y && point.y <= y + height && outsideOfExcludeArea)
+        if (outsideOfExcludeArea && point.y >= y && point.y <= y + height
+            && point.x >= x && point.x <= x + width)
             filteredDB.addMapObject(point);
      }
 

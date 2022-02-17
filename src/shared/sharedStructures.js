@@ -267,7 +267,7 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
     getNextPoint(database) {
         let nextPathPart = this.getNextPart(database);
         if (!nextPathPart) return false;
-        return nextPathPart.getPoint();
+        return nextPathPart.getPoint(database);
     }
 }
 

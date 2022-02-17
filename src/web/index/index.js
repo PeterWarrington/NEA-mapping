@@ -1,6 +1,7 @@
 canvasState = undefined;
 debug_displayAreasDrawn = false;
 debug_drawAllHighwayLabelsTest = true;
+debug_drawHighwayLabels_smart = true;
 
 class CanvasState {
     /** The {CanvasRenderingContext2D} that is used on the canvas */
@@ -38,7 +39,9 @@ class CanvasState {
     stokeOn = false;
 
     /** Stores details of areas drawn to screen */
-    areasDrawn = []
+    areasDrawn = [];
+    /** Drawn labels */
+    labelsDrawn = [];
 
     constructor () {
         this.canvas = document.getElementById("mapCanvas");
@@ -180,6 +183,15 @@ class CanvasState {
         }
         // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
 
+        // Clear drawn labels
+        this.labelsDrawn = [];
+
+        // Draw highway labels
+        for (let i = 0; i < this.database.pathIDs.length; i++) {
+            const pathID = this.database.pathIDs[i];
+            this.database.db[pathID].drawLabel();
+        }
+
         if (debug_displayAreasDrawn) debug_displayAreasDrawnFunc();
     }
     
@@ -312,13 +324,6 @@ class Path extends shared.Path {
         if (canvasState == null) {
             console.warn("Canvas state not defined, unable to plot path.");
             return;
-        }
-
-        if (debug_drawAllHighwayLabelsTest && this.metadata.osm.ref != undefined) {
-            canvasState.ctx.font = '8pt serif';
-            canvasState.ctx.fillStyle = "red";
-            let startingPoint = canvasState.database.db[canvasState.database.db[this.startingPathPartID].pointID];
-            canvasState.ctx.fillText(this.metadata.osm.ref, startingPoint.pathPointDisplayX, startingPoint.pathPointDisplayY);
         }
 
         this.getPathStyle();
@@ -473,6 +478,58 @@ class Path extends shared.Path {
             default:
               break;
           }
+    }
+
+    drawLabel() {
+        canvasState.ctx.font = '8pt var(--bs-font-sans-serif)';
+        canvasState.ctx.fillStyle = "black";
+
+        if (!debug_drawHighwayLabels_smart && debug_drawAllHighwayLabelsTest && this.metadata.osm.ref != undefined) {
+            let startingPoint = canvasState.database.db[canvasState.database.db[this.startingPathPartID].pointID];
+            canvasState.ctx.fillText(this.metadata.osm.ref, startingPoint.pathPointDisplayX, startingPoint.pathPointDisplayY);
+        }
+
+        if (debug_drawHighwayLabels_smart && this.metadata.osm.ref != undefined) {
+            let startingPathPart = canvasState.database.db[this.startingPathPartID];
+            let startingPoint = startingPathPart.getPoint(canvasState.database);
+            let nextPoint = PathPart.getPartByStepsAway(canvasState.database, startingPathPart, 3).getPoint(canvasState.database);
+
+            // Get angle between startingPoint and nextPoint
+            let changeInX = startingPoint.x - nextPoint.x;
+            let changeInY = startingPoint.y - nextPoint.y;
+            let angle = Math.atan(changeInY/changeInX);
+
+            let newLabel = {text: this.metadata.osm.ref, 
+                        x: startingPoint.pathPointDisplayX, 
+                        y: startingPoint.pathPointDisplayY, 
+                        angle: angle};
+
+            // Only draw if there isn't another label close by and the coords are on screen.
+            // Check by iterating through labels drawn
+            let drawLabelFlag = areCoordsOnScreen(newLabel.x, newLabel.y, canvasState);
+            for (let i = 0; drawLabelFlag && i < canvasState.labelsDrawn.length; i++) {
+                const oldLabel = canvasState.labelsDrawn[i];
+                if (Math.abs(newLabel.x - oldLabel.x) < 10 || Math.abs(newLabel.y - oldLabel.y) < 10)
+                    drawLabelFlag = false;
+            }
+
+            if (drawLabelFlag) {
+                // Move origin to starting point (rotation is done about origin)
+                canvasState.ctx.translate(newLabel.x, newLabel.y);
+                // Set angle of label drawing
+                canvasState.ctx.rotate(newLabel.angle);
+
+                // Draw label
+                canvasState.ctx.fillText(newLabel.text, 0, 0);
+
+                // Reset angle and translation
+                canvasState.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+                // Add label to labels drawn
+                if (!canvasState.labelsDrawn.includes(newLabel))
+                    canvasState.labelsDrawn.push(newLabel);
+            }
+        }
     }
 }
 

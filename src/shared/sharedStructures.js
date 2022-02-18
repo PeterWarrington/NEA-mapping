@@ -159,33 +159,19 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
     /** Fixed y position of point in relation to others */
     y
 
-    /** Options for the point when drawing to screen */
-    options = {
-        pointDrawMethod: "none",
-        pointText: "•",
-        pointFont: "sans-serif",
-        pointFontWidth: 16,
-        pointFillStyle: "#878787",
-        pathDrawPointX: 3,
-        pathDrawPointY: -6
-    }
-
     /**
      * Creates a point that can form part of a path and be displayed on a canvas.
      * @param {int} x Fixed x position of point in relation to others
      * @param {int} y Fixed y position of point in relation to others
-     * @param {object} options Options for the point when drawing to screen
      * @param {object} metadata Optional metadata such as name
      */
-    constructor (x, y, options={}, metadata={}) {
+    constructor (x, y, metadata={}) {
         super();
 
         this.x = x;
         this.y = y;
 
         this.metadata = metadata;
-
-        this.options = {...this.options, ...options};
     }
 
     /**
@@ -195,7 +181,7 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
      * @returns MapPoint
      */
     static mapPointFromObject(object) {
-        var mapPoint = new shared.MapPoint(object.x, object.y, object.options, object.metadata);
+        var mapPoint = new shared.MapPoint(object.x, object.y, object.metadata);
         mapPoint.ID = object.ID;
         mapPoint.metadata = object.metadata;
 

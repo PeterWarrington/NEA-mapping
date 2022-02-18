@@ -9,7 +9,7 @@ module.exports.getTestDB = function (shared, req, res) {
 
     // Create path 1
     var pointsPath1 = [
-        new shared.MapPoint(50, 50, {pointText: "•\t\tPath 1"}),
+        new shared.MapPoint(50, 50),
         new shared.MapPoint(60, 55),
         new shared.MapPoint(100, 70),
         new shared.MapPoint(110, 100)
@@ -20,7 +20,7 @@ module.exports.getTestDB = function (shared, req, res) {
 
     // Create path 2
     var pointsPath2 = [
-        new shared.MapPoint(30, 200, {pointText: "•\t\tPath 2"}),
+        new shared.MapPoint(30, 200),
         new shared.MapPoint(400, 170),
         new shared.MapPoint(300, 250),
         new shared.MapPoint(270, 20),

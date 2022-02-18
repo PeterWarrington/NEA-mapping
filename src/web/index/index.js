@@ -556,6 +556,17 @@ shared.PathPart = PathPart;
 class MapPoint extends shared.MapPoint {
     canvasState
 
+    /** Options for the point when drawing to screen */
+    options = {
+        pointDrawMethod: "none",
+        pointText: "•",
+        pointFont: "sans-serif",
+        pointFontWidth: 16,
+        pointFillStyle: "#878787",
+        pathDrawPointX: 3,
+        pathDrawPointY: -6
+    }
+
     /**
      * Creates a point that can form part of a path and be displayed on a canvas.
      * @param {int} x Fixed x position of point in relation to others
@@ -563,15 +574,13 @@ class MapPoint extends shared.MapPoint {
      * @param {object} options Options for the point when drawing to screen
      * @param {object} metadata Optional metadata
      */
-     constructor (x, y, options={}, metadata={}) {
+     constructor (x, y, metadata={}) {
         super();
 
         this.x = x;
         this.y = y;
 
         this.metadata = metadata;
-
-        this.options = {...this.options, ...options};
     }
 
     /** Gets the x position relative to the canvas */

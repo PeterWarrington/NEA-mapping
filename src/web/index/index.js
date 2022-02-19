@@ -722,7 +722,16 @@ class Area extends shared.Area {
             case "meadow":
             case "orchard":
             case "vineyard":
+            case "grass":
+            case "recreation_ground":
+            case "village_green":
+            case "plant_nursery":
                 ctx.fillStyle = "#ace0a1";
+                break;
+            case "basin":
+            case "reservoir":
+            case "salt_pond":
+                ctx.fillStyle = "#8fafe3";
                 break;
             default:
                 break;

@@ -484,6 +484,7 @@ class Path extends shared.Path {
     drawLabel() {
         canvasState.ctx.font = '8pt var(--bs-font-sans-serif)';
         canvasState.ctx.fillStyle = "black";
+        canvasState.ctx.strokeStyle = "white";
 
         if (!debug_drawHighwayLabels_smart && debug_drawAllHighwayLabelsTest && this.metadata.osm.ref != undefined) {
             let startingPoint = canvasState.database.db[canvasState.database.db[this.startingPathPartID].pointID];
@@ -493,43 +494,47 @@ class Path extends shared.Path {
         if (debug_drawHighwayLabels_smart && this.metadata.osm.ref != undefined) {
             let startingPathPart = canvasState.database.db[this.startingPathPartID];
             let startingPoint = startingPathPart.getPoint(canvasState.database);
-            let nextPoint = PathPart.getPartByStepsAway(canvasState.database, startingPathPart, 3).getPoint(canvasState.database);
+            let labelText = this.metadata.osm.ref;
+            let textWidth = canvasState.ctx.measureText(labelText).width;
+            let nextPart = startingPathPart.getPartByDistanceAway(canvasState.database, textWidth);
+            if (!nextPart) return; // Don't draw if there isn't a suitable point to measure angle for
+            let nextPoint = nextPart.getPoint(canvasState.database);
 
             // Get angle between startingPoint and nextPoint
             let changeInX = startingPoint.x - nextPoint.x;
             let changeInY = startingPoint.y - nextPoint.y;
             let angle = Math.atan(changeInY/changeInX);
 
-            let newLabel = {text: this.metadata.osm.ref, 
+            let newLabel = {text: labelText, 
                         x: startingPoint.pathPointDisplayX + 3, 
                         y: startingPoint.pathPointDisplayY + 3, 
                         angle: angle};
 
             // Only draw if there isn't another label close by and the coords are on screen.
             // Check by iterating through labels drawn
-            let drawLabelFlag = areCoordsOnScreen(newLabel.x, newLabel.y, canvasState);
-            for (let i = 0; drawLabelFlag && i < canvasState.labelsDrawn.length; i++) {
+            if (!areCoordsOnScreen(newLabel.x, newLabel.y, canvasState)) return;
+            for (let i = 0; i < canvasState.labelsDrawn.length; i++) {
                 const oldLabel = canvasState.labelsDrawn[i];
-                if (Math.abs(newLabel.x - oldLabel.x) < 10 || Math.abs(newLabel.y - oldLabel.y) < 10)
-                    drawLabelFlag = false;
+                let minDistanceAwayFromOtherLabels = textWidth;
+                if (Math.abs(newLabel.x - oldLabel.x) < minDistanceAwayFromOtherLabels || Math.abs(newLabel.y - oldLabel.y) < minDistanceAwayFromOtherLabels)
+                    return;
             }
 
-            if (drawLabelFlag) {
-                // Move origin to starting point (rotation is done about origin)
-                canvasState.ctx.translate(newLabel.x, newLabel.y);
-                // Set angle of label drawing
-                canvasState.ctx.rotate(newLabel.angle);
+            // Move origin to starting point (rotation is done about origin)
+            canvasState.ctx.translate(newLabel.x, newLabel.y);
+            // Set angle of label drawing
+            canvasState.ctx.rotate(newLabel.angle);
 
-                // Draw label
-                canvasState.ctx.fillText(newLabel.text, 0, 0);
+            // Draw label
+            canvasState.ctx.strokeText(newLabel.text, 0, 0);
+            canvasState.ctx.fillText(newLabel.text, 0, 0);
 
-                // Reset angle and translation
-                canvasState.ctx.setTransform(1, 0, 0, 1, 0, 0);
+            // Reset angle and translation
+            canvasState.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
-                // Add label to labels drawn
-                if (!canvasState.labelsDrawn.includes(newLabel))
-                    canvasState.labelsDrawn.push(newLabel);
-            }
+            // Add label to labels drawn
+            if (!canvasState.labelsDrawn.includes(newLabel))
+                canvasState.labelsDrawn.push(newLabel);
         }
     }
 }
@@ -548,6 +553,28 @@ class PathPart extends shared.PathPart {
         this.pointID = pointID;
         this.nextPathPartIDs = nextPathPartIDs;
         this.metadata = metadata
+    }
+
+    /**
+     * Get the nearest part at least distance away
+     * @param {MapDataObjectDB} database 
+     * @param {Number} distance 
+     * @returns {PathPart} or false if not found.
+     */
+     getPartByDistanceAway(database, distance) {
+        let possiblePart = this;
+        let getDistance = () => 
+            MapPoint.displayedDistanceBetweenPoints(
+            possiblePart.getPoint(database),
+            this.getPoint(database));
+
+        while (getDistance() < distance) {
+            let nextPart = possiblePart.getNextPart(database);
+            if (!nextPart) return false;
+            else possiblePart = nextPart;
+        }
+
+        return possiblePart;
     }
 }
 
@@ -617,6 +644,10 @@ class MapPoint extends shared.MapPoint {
             canvasState.ctx.font = `${this.options.pointFontWidth}px ${this.options.pointFont}`;
             canvasState.ctx.fillText(this.options.pointText, this.displayedX, this.displayedY);
         }
+    }
+
+    static displayedDistanceBetweenPoints(a, b) {
+        return Math.sqrt((a.pathPointDisplayX - b.pathPointDisplayX)**2 + (a.pathPointDisplayY - b.pathPointDisplayY)**2);
     }
 }
 

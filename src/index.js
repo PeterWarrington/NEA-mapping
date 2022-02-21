@@ -30,6 +30,8 @@ app.get("/api/GetDBfromFile", (req, res) => require("./api/getDBfromFile.js").ge
 app.get("/api/GetDBfromQuery", (req, res) => require("./api/dbFromQuery.js").getDBfromQuery(shared, req, res));
 
 app.use(express.static('web', options));
+app.use(express.static('shared', options));
+
 app.listen(port);
 
 logger.log(`Server has started at http://${hostname}:${port}`);

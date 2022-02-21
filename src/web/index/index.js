@@ -454,9 +454,10 @@ class Path extends shared.Path {
     getPathStyle() {
         switch (this.metadata.pathType["first_level_descriptor"]) {
             case "water_way":
-                this.data.borderWidth = 4;
-                this.data.lineWidth = 0;
-                this.data.borderStyle = "#b0e1f7"; 
+                this.data.borderWidth = 0;
+                this.data.lineWidth = 4;
+                this.data.borderStyle = "none"; 
+                this.data.fillStyle = "#b0e1f7";
                 break;
             default:
                 break;
@@ -736,7 +737,7 @@ class Area extends shared.Area {
         if (this.metadata.areaType != undefined && this.metadata.areaType["first_level_descriptor"] != undefined)
         switch (this.metadata.areaType["first_level_descriptor"]) {
             case "water_area":
-                ctx.fillStyle = "#8fafe3";
+                ctx.fillStyle = "#8fafe3"; 
                 break;
             case "land":
                 ctx.fillStyle = "#bfbfbf";

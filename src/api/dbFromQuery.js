@@ -138,6 +138,7 @@ var debug_searchFilterCount = 0;
      var y;
      var height;
      var width;
+     var pathTypeCount;
 
      // These variables refer to the area to exclude from results (because it has already been requested by the client)
      var excludeAreas = []
@@ -145,20 +146,28 @@ var debug_searchFilterCount = 0;
      var mapAreaError = false;
 
      try {
-         if (req.query.x != undefined)
-             x = parseInt(req.query.x);
+         let area = req.query.area;
+         if (area == undefined) mapAreaError = true;
+         area = JSON.parse(area);
+
+         if (area.x != undefined)
+             x = parseInt(area.x);
          else mapAreaError = true;
 
-         if (req.query.y != undefined)
-             y = parseInt(req.query.y);
+         if (area.y != undefined)
+             y = parseInt(area.y);
          else mapAreaError = true;
 
-         if (req.query.height != undefined)
-             height = parseInt(req.query.height);
+         if (area.height != undefined)
+             height = parseInt(area.height);
          else mapAreaError = true;
 
-         if (req.query.width != undefined)
-             width = parseInt(req.query.width);
+         if (area.width != undefined)
+             width = parseInt(area.width);
+         else mapAreaError = true;
+
+         if (area.pathTypeCount != undefined)
+             pathTypeCount = parseInt(area.pathTypeCount);
          else mapAreaError = true;
 
          if (JSON.parse(req.query.excludeAreas) instanceof Array)
@@ -184,9 +193,9 @@ var debug_searchFilterCount = 0;
         var outsideOfExcludeArea = true;
         for (let a = 0; a < excludeAreas.length; a++) {
             const excludeArea = excludeAreas[a];
-            outsideOfExcludeArea = outsideOfExcludeArea && (
-                point.x <= excludeArea.x || point.x >= excludeArea.x + excludeArea.width ||
-                point.y <= excludeArea.y || point.y >= excludeArea.y + excludeArea.height
+            outsideOfExcludeArea = outsideOfExcludeArea && (excludeArea.pathTypeCount < pathTypeCount ||
+                (point.x <= excludeArea.x || point.x >= excludeArea.x + excludeArea.width ||
+                point.y <= excludeArea.y || point.y >= excludeArea.y + excludeArea.height)
             );
             if (!outsideOfExcludeArea) break;
         }

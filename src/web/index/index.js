@@ -246,16 +246,17 @@ class CanvasState {
             x: -canvasState.xTranslation - 500,
             y: -canvasState.yTranslation - 500,
             height: (getAbsoluteHeight(canvasState.canvas)+500)/canvasState.zoomLevel,
-            width: (getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel
-        }
+            width: (getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel,
+            pathTypeCount: pathTypes.length
+        };
 
         // Check map area hasn't already been drawn
         let hasBeenDrawn = false;
         for (let i = 0; i < this.areasDrawn.length; i++) {
             const areaDrawn = this.areasDrawn[i];
-            hasBeenDrawn = hasBeenDrawn || 
+            hasBeenDrawn = hasBeenDrawn || (areaDrawn.pathTypeCount >= canvasState.area.pathTypeCount &&
                 (canvasState.area.x >= areaDrawn.x && canvasState.area.x + canvasState.area.width <= areaDrawn.x + areaDrawn.width 
-                    && canvasState.area.y >= areaDrawn.y && canvasState.area.y + canvasState.area.height <= areaDrawn.y + areaDrawn.height)
+                    && canvasState.area.y >= areaDrawn.y && canvasState.area.y + canvasState.area.height <= areaDrawn.y + areaDrawn.height))
             if (hasBeenDrawn) break;
         }
 
@@ -263,7 +264,7 @@ class CanvasState {
             // Make request
             let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
             let testURLlimitedArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
-            let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
+            let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
             this.httpReq.open("GET", normalURL);
             this.httpReq.send();
 
@@ -527,10 +528,17 @@ class Path extends shared.Path {
             canvasState.ctx.fillText(this.metadata.osm.ref, startingPoint.displayedX, startingPoint.displayedY);
         }
 
-        if (debug_drawHighwayLabels_smart && this.metadata.osm.ref != undefined) {
+        if (debug_drawHighwayLabels_smart) {
             let startingPathPart = canvasState.database.db[this.startingPathPartID];
             let startingPoint = startingPathPart.getPoint(canvasState.database);
-            let labelText = this.metadata.osm.ref;
+            
+            // Get label text
+            let labelText;
+            if (this.metadata.osm.ref != undefined) labelText = this.metadata.osm.ref;
+            else if (this.metadata.osm.name != undefined) labelText = this.metadata.osm.name;
+
+            if (labelText == undefined) return;
+
             let textWidth = canvasState.ctx.measureText(labelText).width;
             let nextPart = startingPathPart.getPartByDistanceAway(canvasState.database, textWidth);
             if (!nextPart) return; // Don't draw if there isn't a suitable point to measure angle for

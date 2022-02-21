@@ -24,6 +24,8 @@ shared.MapDataObjectDB = class MapDataObjectDB {
     partIDs = []
     /** Caches area IDs */
     areaIDs = []
+    /** Caches complex area IDs */
+    complexAreaIDs = []
 
     /**
      * Adds a map object to the database, generating a random ID.
@@ -42,7 +44,9 @@ shared.MapDataObjectDB = class MapDataObjectDB {
             else if (mapObject instanceof shared.Path)
                 ID += "PATH";
             else if (mapObject instanceof shared.Area)
-                ID += "AREA"
+                ID += "AREA";
+            else if (mapObject instanceof shared.ComplexArea)
+                ID += "COMPLEX-AREA";
             else
                 ID += "GENERIC";
 
@@ -65,6 +69,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         if (ID.indexOf("PART") == 0) this.partIDs.push(ID);
         if (ID.indexOf("PATH") == 0) this.pathIDs.push(ID);
         if (ID.indexOf("AREA") == 0) this.areaIDs.push(ID);
+        if (ID.indexOf("COMPLEX-AREA") == 0) this.complexAreaIDs.push(ID);
 
         return mapObject;
     }
@@ -87,8 +92,10 @@ shared.MapDataObjectDB = class MapDataObjectDB {
                 return this.partIDs;
             case "AREA":
                 return this.areaIDs;
+            case "COMPLEX-AREA":
+                return this.complexAreaIDs;
             default:
-                return Object.keys(this.db).filter(id => id.indexOf(type) == 0);
+                return Object.keys(this.db).filter(id => id.indexOf(type) == 0); // Slow fallback
         }
     }
 
@@ -363,7 +370,8 @@ shared.Path = class Path extends shared.MapDataObject {
 shared.Area = class Area extends shared.MapDataObject {
     /** Sequential list of map point IDs that make up area */
     mapPointIDs
-    /** Contains optional data 
+
+    /** Contains optional data
      * Such as borderStyle, fillStyle
     */
     data 
@@ -380,5 +388,27 @@ shared.Area = class Area extends shared.MapDataObject {
         area.ID = object.ID;
         area.metadata = object.metadata;
         return area;
+    }
+}
+
+/** 
+ * Used to define area made of multiple areas
+ */
+shared.ComplexArea = class ComplexArea extends shared.MapDataObject {
+    outerAreaID
+    innerAreaIDs
+
+    constructor(outerAreaID, innerAreaIDs) {
+        super();
+
+        this.outerAreaID = outerAreaID;
+        this.innerAreaIDs = innerAreaIDs;
+    }
+
+    static complexAreaFromObject(object) {
+        let complexArea = new shared.ComplexArea(object.outerAreaID, object.innerAreaIDs);
+        area.ID = object.ID;
+        area.metadata = object.metadata;
+        return complexArea;
     }
 }

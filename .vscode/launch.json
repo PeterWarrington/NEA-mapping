@@ -28,7 +28,7 @@
             "program": "${workspaceFolder}//src//convertFromOSM.js",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}//src//",
-            "args": [],
+            "args": ["--noCacheWrite"],
             "runtimeArgs": [
                 "--max-old-space-size=16384",
                 "--expose-gc"

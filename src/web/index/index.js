@@ -37,6 +37,8 @@ class CanvasState {
     area
     /** Indicates wether stroke is on */
     stokeOn = false;
+    /** Stores the value of the last number of path types drawn */
+    pathTypeCountLast = 0;
 
     /** Stores details of areas drawn to screen */
     areasDrawn = [];
@@ -179,7 +181,13 @@ class CanvasState {
 
         for (let i = 0; i < this.database.pathIDs.length; i++) {
             const pathID = this.database.pathIDs[i];
-            this.database.db[pathID].plotLine(this);
+            let path = this.database.db[pathID];
+            let acceptedPathTypes = this.getPathTypes();
+
+            // Only plot line if is one of accepted path types for zoom level
+            if (acceptedPathTypes.includes(path.metadata.pathType["second_level_descriptor"])
+            || acceptedPathTypes.includes(path.metadata.pathType["first_level_descriptor"]))
+                path.plotLine(this);
         }
         // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
 
@@ -211,6 +219,14 @@ class CanvasState {
     }
 
     updateMapData(forceUpdate=false) {
+        // Assemble types of paths to query based on zoom level
+        let pathTypes = this.getPathTypes();
+        if (pathTypes.length > this.pathTypeCountLast) {
+            this.pathTypeCountLast = pathTypes.length;
+            // Force an update as more path types have been requested
+            forceUpdate = true;
+        }
+
         // Only continue if forceUpdate flag is set, or more than 500ms since last map data update and mapDataUpdateOngoing flag is not set
         if (!forceUpdate && (this.mapDataUpdateOngoing || Date.now() - this.timeOfLastMapDataUpdate < 500)) {
             if (!this.mapDataUpdateQueued) {
@@ -243,10 +259,11 @@ class CanvasState {
             if (hasBeenDrawn) break;
         }
 
-        if (!hasBeenDrawn) {
+        if (forceUpdate || !hasBeenDrawn) {
+            // Make request
             let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
             let testURLlimitedArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
-            let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
+            let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&x=${canvasState.area.x}&y=${canvasState.area.y}&height=${canvasState.area.height}&width=${canvasState.area.width}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
             this.httpReq.open("GET", normalURL);
             this.httpReq.send();
 
@@ -300,11 +317,34 @@ class CanvasState {
         http.open("GET", `http://localhost/api/GetDBfromQuery?searchTerm="${input}"&noMapAreaFilter=true`);
         http.send();
     }
+
+    /**
+     * Returns an array of the path types to display based on zoom level
+     */
+    getPathTypes() {
+        let pathsToDisplay = ["motorway", "primary", "trunk", "primary_link", "trunk_link", "river"];
+        if (this.zoomLevel > 0.05)
+            pathsToDisplay = pathsToDisplay.concat(["secondary", "secondary_link"]);
+        if (this.zoomLevel > 0.2)
+            pathsToDisplay = pathsToDisplay.concat(["tertiary", "tertiary_link"]);
+        if (this.zoomLevel > 0.4)
+            pathsToDisplay = pathsToDisplay.concat(["unclassified", "residential"]);
+        
+        return pathsToDisplay;
+    }
 }
 
 class Path extends shared.Path {
     /** The {canvasState} instance */
     canvasState
+
+    /** Data, including options for the path when drawing to screen */
+    data = {
+        borderWidth: 1,
+        lineWidth: 3,
+        borderStyle: "#adadad",
+        fillStyle: "#e6e6e6" // Gray 
+    }
 
     /**
      * 
@@ -340,8 +380,8 @@ class Path extends shared.Path {
             canvasState.database.db[startingPathPart.pointID].canvasState = canvasState;
 
             // Move to the starting point
-            let startX = canvasState.database.db[startingPathPart.pointID].pathPointDisplayX;
-            let startY = canvasState.database.db[startingPathPart.pointID].pathPointDisplayY;
+            let startX = canvasState.database.db[startingPathPart.pointID].displayedX;
+            let startY = canvasState.database.db[startingPathPart.pointID].displayedY;
 
             // If we get to a branch, push the other branches to startingPathPartsToDraw to iterate through later
             let currentPathPart = startingPathPart;
@@ -352,11 +392,11 @@ class Path extends shared.Path {
                 // Or if skipping, skip to the one after that if not at the end of the path
                 let nextPointer = shared.PathPart.getPartByStepsAway(canvasState.database, currentPathPart, 3);
 
-                let endX = canvasState.database.db[currentPathPart.pointID].pathPointDisplayX;
-                let endY = canvasState.database.db[currentPathPart.pointID].pathPointDisplayY;
+                let endX = canvasState.database.db[currentPathPart.pointID].displayedX;
+                let endY = canvasState.database.db[currentPathPart.pointID].displayedY;
 
-                let nextEndX = canvasState.database.db[nextPointer.pointID].pathPointDisplayX;
-                let nextEndY = canvasState.database.db[nextPointer.pointID].pathPointDisplayY;
+                let nextEndX = canvasState.database.db[nextPointer.pointID].displayedX;
+                let nextEndY = canvasState.database.db[nextPointer.pointID].displayedY;
 
                 // Draw point if this point is on screen, or the next point is on screen
                 if (
@@ -453,28 +493,24 @@ class Path extends shared.Path {
               this.data.borderStyle = "#d622a0";
               break;
             case "secondary":
-              this.data.borderWidth = 2;
-              this.data.lineWidth = 3;
-              this.data.borderStyle = "#d622a0"; // Pink
+              this.data.borderWidth = 0;
+              this.data.lineWidth = 5;
               this.data.fillStyle = "#e6a31e"; // Orange
               break;
             case "secondary_link":
               this.data.borderWidth = 1;
-              this.data.lineWidth = 3;
+              this.data.lineWidth = 4;
               this.data.borderStyle = "#2b2b2b";
               this.data.fillStyle = "#e6a31e";
               break;
-            case "tertiary":
-              this.data.borderWidth = 1;
-              this.data.lineWidth = 3;
-              this.data.borderStyle = "#2b2b2b";
-              this.data.fillStyle = "#adadad"; // Gray
-              break;
             case "tertiary_link":
-              this.data.borderWidth = 1;
-              this.data.lineWidth = 3;
-              this.data.borderStyle = "#2b2b2b";
-              this.data.fillStyle = "#adadad";
+            case "tertiary":
+            case "unclassified":
+            case "residential":
+                this.data.borderWidth = 1,
+                this.data.lineWidth = 3,
+                this.data.borderStyle = "#adadad",
+                this.data.fillStyle = "#e6e6e6" // Gray 
               break;
             default:
               break;
@@ -488,7 +524,7 @@ class Path extends shared.Path {
 
         if (!debug_drawHighwayLabels_smart && debug_drawAllHighwayLabelsTest && this.metadata.osm.ref != undefined) {
             let startingPoint = canvasState.database.db[canvasState.database.db[this.startingPathPartID].pointID];
-            canvasState.ctx.fillText(this.metadata.osm.ref, startingPoint.pathPointDisplayX, startingPoint.pathPointDisplayY);
+            canvasState.ctx.fillText(this.metadata.osm.ref, startingPoint.displayedX, startingPoint.displayedY);
         }
 
         if (debug_drawHighwayLabels_smart && this.metadata.osm.ref != undefined) {
@@ -506,8 +542,8 @@ class Path extends shared.Path {
             let angle = Math.atan(changeInY/changeInX);
 
             let newLabel = {text: labelText, 
-                        x: startingPoint.pathPointDisplayX + 3, 
-                        y: startingPoint.pathPointDisplayY + 3, 
+                        x: startingPoint.displayedX + 3, 
+                        y: startingPoint.displayedY + 3, 
                         angle: angle};
 
             // Only draw if there isn't another label close by and the coords are on screen.
@@ -620,16 +656,6 @@ class MapPoint extends shared.MapPoint {
         return (this.y + canvasState.yTranslation) * canvasState.zoomLevel;
     }
 
-    /** Gets the x position of where the path should be drawn relative to canvas */
-    get pathPointDisplayX() {
-        return this.displayedX + this.options.pathDrawPointX;
-    }
-
-    /** Gets the y position of where the path should be drawn relative to canvas */
-    get pathPointDisplayY() {
-        return this.displayedY + this.options.pathDrawPointY;
-    }
-
     /**
      * Function to draw the point to the screen
      */
@@ -647,7 +673,7 @@ class MapPoint extends shared.MapPoint {
     }
 
     static displayedDistanceBetweenPoints(a, b) {
-        return Math.sqrt((a.pathPointDisplayX - b.pathPointDisplayX)**2 + (a.pathPointDisplayY - b.pathPointDisplayY)**2);
+        return Math.sqrt((a.displayedX - b.displayedX)**2 + (a.displayedY - b.displayedY)**2);
     }
 }
 

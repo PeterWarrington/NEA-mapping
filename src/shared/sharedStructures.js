@@ -267,24 +267,16 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
 shared.Path = class Path extends shared.MapDataObject {
     /** The {PathPart} object ID that begins the path */
     startingPathPartID
-    /** Data, including options for the path when drawing to screen */
-    data = {
-        borderWidth: 3,
-        lineWidth: 1,
-        borderStyle: "#e8cc4a",
-        fillStyle: "none"
-    }
 
     /**
      * Creates a path using a starting points
      * @param {string} startingPathPartID The ID of {PathPart} object that begins the path
      * @param {object} data Data, including options for the path when drawing to screen
      */
-    constructor (startingPathPartID, data={}) {
+    constructor (startingPathPartID) {
         super();
 
         this.startingPathPartID = startingPathPartID;
-        this.data = {...this.data, ...data};
     }
 
     /**

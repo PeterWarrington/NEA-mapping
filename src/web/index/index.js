@@ -341,10 +341,10 @@ class Path extends shared.Path {
 
     /** Data, including options for the path when drawing to screen */
     data = {
-        borderWidth: 1,
-        lineWidth: 3,
-        borderStyle: "#adadad",
-        fillStyle: "#e6e6e6" // Gray 
+        borderWidth: 0,
+        lineWidth: 0,
+        borderStyle: "none",
+        fillStyle: "none"
     }
 
     /**
@@ -516,6 +516,13 @@ class Path extends shared.Path {
               break;
             default:
               break;
+          }
+
+          if (this.data.borderWidth == 0 && this.data.lineWidth == 0) {
+            this.data.borderWidth = 1,
+            this.data.lineWidth = 3,
+            this.data.borderStyle = "#adadad",
+            this.data.fillStyle = "#e6e6e6" // Gray 
           }
     }
 

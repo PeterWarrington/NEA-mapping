@@ -31,17 +31,19 @@ try {
   console.log(`Unable to cache OS-JS data. ${e.name}: ${e.message}. Continuing anyway...`);
 }
 
-console.log("Extracting ways, and nodes...");
+console.log("Extracting ways, nodes and relations...");
 
 var cachedNodedataAvailable = process.argv.includes("--cacheRead") && fs.existsSync(".osmToJS_nodes.json");
 
 var allWays = [];
 var nodes = {};
+var relations = [];
 
 for (let i = 0; i < osmData.elements[0].elements.length; i++) {
   const element = osmData.elements[0].elements[i];
   if (element.name == "node" && !cachedNodedataAvailable) nodes[element.attributes.id] = element;
   if (element.name == "way") allWays.push(element);
+  if (element.name == "relation") relations.push(element);
 }
 
 if (cachedNodedataAvailable) {
@@ -50,7 +52,7 @@ if (cachedNodedataAvailable) {
   console.log("\t\tCached node data read completed.");
 }
 
-console.log("\tWay and node extraction complete.");
+console.log("\tWay, node and relation extraction complete.");
 
 // Cache nodes
 try {
@@ -80,7 +82,7 @@ if (cachedwaysAvailable) {
   for (let w = 0; w < allWays.length; w++) {
     const way = allWays[w];
     const wayType = getWayType(way);
-    if (wayType != "no_way" && wayType != "other") 
+    if (wayType != "no_way") 
           filteredWays.push(way);
   }
 
@@ -101,6 +103,49 @@ try {
   console.log(`Unable to cache ways. ${e.name}: ${e.message}. Continuing anyway...`);
 }
 
+// Extract multi-polygons, identifying way areas that make up mutli-polygons
+class Multipolygon {
+  outerWayId
+  innerWayIds
+  relation
+  constructor(outerWayId, innerWayIds, relation) {
+    this.outerWayId = outerWayId;
+    this.innerWayIds = innerWayIds;
+    this.relation = relation;
+  }
+}
+
+var multipolygons = [];
+relations.forEach(relation => {
+  let isMultipolygon = false;
+  let outerWayId;
+  let innerWayIds = [];
+    relation.elements.forEach(element => {
+      if (element.name == "tag" && element.attributes.k == "type" && element.attributes.v == "multipolygon")
+        isMultipolygon = true;
+      else if (element.name == "member" && element.attributes.type == "way")
+        if (element.attributes.role == "outer") outerWayId = element.attributes.ref;
+        else if (element.attributes.role == "inner") innerWayIds.push(element.attributes.ref);
+    });
+
+    if (isMultipolygon && outerWayId != undefined && innerWayIds.length > 0)
+      multipolygons.push(new Multipolygon(outerWayId, innerWayIds, relation));
+});
+
+// Identify those ways that compose multipolygons so can be efficiently 
+// queried later.
+var wayIDsComposingMultipolygons = [];
+multipolygons.forEach(multipolygon => {
+  wayIDsComposingMultipolygons.push(multipolygon.outerWayId);
+  wayIDsComposingMultipolygons = wayIDsComposingMultipolygons.concat(multipolygon.innerWayIds);
+
+  let complexArea = new shared.ComplexArea();
+  Object.assign(complexArea.metadata, {"osm": extractMetadata(multipolygon.relation)});
+  complexArea.metadata.osm.outerWayId = multipolygon.outerWayId;
+  complexArea.metadata.osm.innerWayIds = multipolygon.innerWayIds;
+  mapDatabase.addMapObject(complexArea);
+})
+
 // Extract nodes for each way and creating paths
 console.log("Final stage - Generating DB...");
 
@@ -108,7 +153,7 @@ var wLength = filteredWays.length;
 // var wLength = 100;
 for (let w = 0; w < wLength; w++) {
   const way = filteredWays[w];
-  const wayType = getWayType(way);
+  const wayType = getWayType(way, wayIDsComposingMultipolygons);
 
   if (wayType == "other") continue;
   
@@ -153,7 +198,7 @@ for (let w = 0; w < wLength; w++) {
       path.metadata.pathType = {"first_level_descriptor": "water_way", "second_level_descriptor": path.metadata.osm.waterway};
 
     mapDatabase.addMapObject(path);
-  } else if (wayType == "water_area" || wayType == "land") {
+  } else if (["water_area", "land", "inner", "outer"].includes(wayType)) {
     // Add mapPoints to DB and extract IDs
     let mapPointIDs = [];
     mapPointsOfWay.forEach(mapPoint => {
@@ -162,7 +207,11 @@ for (let w = 0; w < wLength; w++) {
     });
 
     // Construct area and add to db
-    let area = new shared.Area(mapPointIDs);
+    let area;
+    if (wayType == "inner" || wayType == "outer")
+      area = new shared.ComplexAreaPart(mapPointIDs, wayType);
+    else 
+      area = new shared.Area(mapPointIDs);
 
     // Add metadata to area mapObject
     Object.assign(area.metadata, {"osm": extractMetadata(way)});
@@ -173,13 +222,30 @@ for (let w = 0; w < wLength; w++) {
       area.metadata.areaType["second_level_descriptor"] = area.metadata.osm.landuse;
 
     mapDatabase.addMapObject(area);
-  }
+  } 
 
   process.stdout.cursorTo(0);
-  process.stdout.write(`${Math.round((w/wLength)*10000)/100}% (${w}/${wLength}) of ways added to db.`);
+  process.stdout.write(`${Math.round(((w+1)/wLength)*10000)/100}% (${w+1}/${wLength}) of ways added to db.`);
 } 
 
-console.log("\nDatabase generated. Writing to file...");
+// Associate complex area parts with complex areas
+let complexAreaParts = mapDatabase.getMapObjectsOfType("COMPLEX-AREA-PART");
+let complexAreas = mapDatabase.getMapObjectsOfType("COMPLEX-AREA");
+
+console.log("\nProcessing complex areas...");
+let complexAreasLength = complexAreas.length;
+for (let i = 0; i < complexAreasLength; i++) {
+  const complexArea = complexAreas[i];
+  complexArea.outerAreaID = complexAreaParts.find(part => part.metadata.osm.id == complexArea.metadata.osm.outerWayId).ID;
+  complexArea.innerAreaIDs = complexAreaParts.filter(part => complexArea.metadata.osm.innerWayIds.includes(part.metadata.osm.id)).map(part => part.ID);
+
+  process.stdout.cursorTo(0);
+  process.stdout.write(`${Math.round(((i+1)/complexAreasLength)*10000)/100}% (${i+1}/${complexAreasLength}) of complex areas processed.`);
+}
+
+console.log("\nComplex areas processed.")
+
+console.log("Database generated. Writing to file...");
 
 // Write database to file
 var dbFilename = `db-${Date.now()}.json`;
@@ -194,7 +260,7 @@ try {
     if (i+1 < dbKeys.length) writeStream.write(`,`);
 
     process.stdout.cursorTo(0);
-    process.stdout.write(`${Math.round((i/dbKeys.length)*10000)/100}% (${i}/${dbKeys.length}) database items written to file.`);
+    process.stdout.write(`${Math.round(((i+1)/dbKeys.length)*10000)/100}% (${i+1}/${dbKeys.length}) database items written to file.`);
   }
   writeStream.write("}}");
   writeStream.end();
@@ -229,8 +295,20 @@ function convertNodeToMapPoint(node) {
 /**
  * @returns {string} the type of way
  */
-function getWayType(way) {
+function getWayType(way, wayIDsComposingMultipolygons=[]) {
   if (way.name != "way") return "no_way";
+
+  let wayId = "";
+  if (way.attributes.id != undefined) wayId = way.attributes.id;
+  else if (way.attributes.ref != undefined) wayId = way.attributes.ref;
+
+  if (wayIDsComposingMultipolygons.includes(wayId)) {
+    for (let i = 0; i < multipolygons.length; i++) {
+      const multipolygon = multipolygons[i];
+      if (multipolygon.outerWayId == wayId) return "outer";
+      else if (multipolygon.innerWayIds.includes(wayId)) return "inner";
+    }
+  } 
 
   for (let i = 0; i < way.elements.length; i++) {
     const element = way.elements[i];
@@ -255,6 +333,9 @@ function extractMetadata(way) {
     if (element.name == "tag") 
       metadata[element.attributes.k] = element.attributes.v;
   }
+
+  if (way.attributes.id != undefined) metadata.id = way.attributes.id;
+  else if (way.attributes.ref != undefined) metadata.id = way.attributes.ref;
 
   return metadata;
 }

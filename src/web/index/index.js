@@ -2,6 +2,7 @@ canvasState = undefined;
 debug_displayAreasDrawn = false;
 debug_drawAllHighwayLabelsTest = true;
 debug_drawHighwayLabels_smart = true;
+debug_testDB = false;
 
 class CanvasState {
     /** The {CanvasRenderingContext2D} that is used on the canvas */
@@ -172,6 +173,11 @@ class CanvasState {
             const area = topLayerAreas[i];
             area.draw(this);
         }
+
+        for (let i = 0; i < this.database.complexAreaIDs.length; i++) {
+            const complexArea = canvasState.database.db[this.database.complexAreaIDs[i]];
+            complexArea.draw();
+        }
         
         if (this.testMapPoints != null) {
             // Halt drawing, call test draw function instead, typical drawing will not be executed
@@ -262,10 +268,16 @@ class CanvasState {
 
         if (forceUpdate || !hasBeenDrawn) {
             // Make request
+            let testingDBurl = `http://localhost/api/GetTestDB`;
             let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
             let testURLlimitedArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
             let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
-            this.httpReq.open("GET", normalURL);
+            
+            let currentURL;
+            if (debug_testDB) currentURL = testingDBurl;
+            else currentURL = normalURL;
+            
+            this.httpReq.open("GET", currentURL);
             this.httpReq.send();
 
             // Display loading indicator
@@ -704,33 +716,69 @@ class Area extends shared.Area {
         this.data = data;
     }
 
-    draw(canvasState) {
+    draw() {
         // Only draw if a point of the area is on screen
+        if (this.isAreaOnScreen()){
+            this.setAreaDrawStyle(canvasState);
+            canvasState.ctx.beginPath();
+
+            this.plotPath();
+
+            Area.finishFillArea();
+        }
+    }
+
+    plotPath(reverse=false) {
+        /** Might need to reverse in order to plot hole.
+         * This is because JS canvas only draws a hole
+         * if one polygon is drawn in opposite direction
+         * to the other (e.g. anticlockwise and clockwise).
+        */
+       let mapPointIDs = this.mapPointIDs.slice(0); // Clone array
+       if (reverse) mapPointIDs = mapPointIDs.reverse();
+
+        for (let i = 0; i < mapPointIDs.length; i++) {
+            const mapPointID = mapPointIDs[i];
+            const mapPoint = canvasState.database.db[mapPointID];
+
+            if (i==0) canvasState.ctx.moveTo(mapPoint.displayedX, mapPoint.displayedY);
+            else canvasState.ctx.lineTo(mapPoint.displayedX, mapPoint.displayedY);
+        }
+
+        canvasState.ctx.closePath();
+    }
+
+    static finishFillArea() {
+        canvasState.ctx.fill();
+        if (canvasState.strokeOn) {
+            canvasState.ctx.stroke();
+            canvasState.strokeOn = false;
+        }
+    }
+
+    static isClockwise(pointIDs) {
+        // https://stackoverflow.com/a/1165943
+        let areaSum = 0;
+        for (let i = 0; i < pointIDs.length - 1; i++) {
+            const point = canvasState.database.db[pointIDs[i]];
+            const pointAfter = canvasState.database.db[pointIDs[i+1]];
+            areaSum += (pointAfter.x - point.x) * (pointAfter.y + pointAfter.y);
+        }
+        return areaSum >= 0;
+    }
+
+    isClockwise() {
+        return Area.isClockwise(this.mapPointIDs);
+    }
+
+    isAreaOnScreen() {
         let isApointOnScreen = false;
         for (let i = 0; !isApointOnScreen && i < this.mapPointIDs.length; i++) {
             const mapPoint = canvasState.database.db[this.mapPointIDs[i]];
             if (!isApointOnScreen) isApointOnScreen = areCoordsOnScreen(mapPoint.displayedX, mapPoint.displayedY, canvasState);
         }
 
-        if (isApointOnScreen){
-            this.#setAreaDrawStyle(canvasState);
-            canvasState.ctx.beginPath();
-
-            for (let i = 0; i < this.mapPointIDs.length; i++) {
-                const mapPointID = this.mapPointIDs[i];
-                const mapPoint = canvasState.database.db[mapPointID];
-    
-                if (i==0) canvasState.ctx.moveTo(mapPoint.displayedX, mapPoint.displayedY);
-                else canvasState.ctx.lineTo(mapPoint.displayedX, mapPoint.displayedY);
-            }
-    
-            canvasState.ctx.closePath();
-            canvasState.ctx.fill();
-            if (canvasState.strokeOn) {
-                canvasState.ctx.stroke();
-                canvasState.strokeOn = false;
-            }
-        }
+        return isApointOnScreen;
     }
 
     /**
@@ -738,7 +786,7 @@ class Area extends shared.Area {
      * to be called before drawing this area.
      * @param {2D canvas context thing from HTML standard} ctx 
      */
-    #setAreaDrawStyle(canvasState) {
+    setAreaDrawStyle(canvasState) {
         let ctx = canvasState.ctx;
 
         if (this.metadata.areaType != undefined && this.metadata.areaType["first_level_descriptor"] != undefined)
@@ -775,6 +823,9 @@ class Area extends shared.Area {
             case "salt_pond":
                 ctx.fillStyle = "#8fafe3";
                 break;
+            case "none":
+                ctx.fillStyle = "rgba(255, 255, 255, 0)";
+                break;
             default:
                 break;
         }
@@ -782,6 +833,83 @@ class Area extends shared.Area {
 }
 
 shared.Area = Area;
+
+class ComplexArea extends shared.ComplexArea {
+    constructor(outerAreaID, innerAreaIDs) {
+        super();
+
+        this.outerAreaID = outerAreaID;
+        this.innerAreaIDs = innerAreaIDs;
+    }
+
+    get outerArea() {
+        return canvasState.database.db[this.outerAreaID];
+    }
+
+    get innerAreas() {
+        return this.innerAreaIDs.map(id => canvasState.database.db[id]);
+    }
+
+    draw() {
+        // Draw outer area
+        if (!this.outerArea.isAreaOnScreen()) return;
+
+        this.outerArea.setAreaDrawStyle(canvasState);
+        canvasState.ctx.beginPath();
+
+        this.outerArea.plotPath();
+        let isOuterAreaClockwise = this.outerArea.isClockwise();
+
+        // Draw inner areas that require empty hole, electing those
+        // that are filled to simply be draw over the larger shape
+        let innerAreasFilled = [];
+        this.innerAreas.forEach(innerArea => {
+            if (innerArea.metadata.areaType["second_level_descriptor"] != "none") 
+                innerAreasFilled.push(innerArea); 
+            else {
+                let drawInReverse = isOuterAreaClockwise == innerArea.isClockwise();
+                innerArea.plotPath(drawInReverse);
+            }
+        });
+
+        Area.finishFillArea();
+
+        // Draw filled inner areas
+        innerAreasFilled.forEach(area => area.draw());
+    }
+}
+
+shared.ComplexArea = ComplexArea;
+
+/** Unfortunately this class has to be fully duplicated from
+ * sharedStructures unlike the other classes, otherwise it 
+ * inherits shared.Area (without drawing functions) not Area
+ * (with drawing functions).
+ */
+ ComplexAreaPart = class ComplexAreaPart extends Area {
+    /**
+     * {string} indicating whether the complex area part is an inner or outer part
+     * of a complex area.
+     */
+    outerOrInner = "unknown"
+    
+    constructor (mapPointIDs, outerOrInner, data={}) {
+        super();
+
+        this.mapPointIDs = mapPointIDs;
+        this.outerOrInner = outerOrInner;
+        this.data = data;
+    }
+
+    static complexAreaPartFromObject(object) {
+        let complexAreaPart = new shared.ComplexAreaPart(object.mapPointIDs, object.outerOrInner, object.data);
+        complexAreaPart.ID = object.ID;
+        complexAreaPart.metadata = object.metadata;
+        return complexAreaPart;
+    }
+}
+
+shared.ComplexAreaPart = ComplexAreaPart;
 
 /**
  * Function called at page load to test some points on canvas
@@ -805,6 +933,8 @@ function MapTest() {
     canvasState.xTranslation =  2292.886051499995;
     canvasState.yTranslation = -7349.380475070653;
     canvasState.zoomLevel =  0.5000000000000001;
+
+    if (debug_testDB == true) debug_func_viewOrigin();
 
     // Load correct canvas width
     canvasState.updateCanvasWidth();
@@ -830,6 +960,13 @@ function debug_viewWholeMap(canvasState) {
     canvasState.xTranslation = -4021.6666666666615;
     canvasState.yTranslation = -2433.8333333333303;
     canvasState.zoomLevel = 0.10000000000000014;
+}
+
+function debug_func_viewOrigin() {
+    canvasState.xTranslation =  0;
+    canvasState.yTranslation = 0;
+    canvasState.zoomLevel =  1;
+    canvasState.draw()
 }
 
 /**

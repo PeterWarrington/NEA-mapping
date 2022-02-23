@@ -26,6 +26,8 @@ shared.MapDataObjectDB = class MapDataObjectDB {
     areaIDs = []
     /** Caches complex area IDs */
     complexAreaIDs = []
+    /** Caches complex area part IDs */
+    complexAreaPartIDs = []
 
     /**
      * Adds a map object to the database, generating a random ID.
@@ -43,6 +45,8 @@ shared.MapDataObjectDB = class MapDataObjectDB {
                 ID += "PART";
             else if (mapObject instanceof shared.Path)
                 ID += "PATH";
+            else if (mapObject instanceof shared.ComplexAreaPart)
+                ID += "COMPLEX-AREA-PART"
             else if (mapObject instanceof shared.Area)
                 ID += "AREA";
             else if (mapObject instanceof shared.ComplexArea)
@@ -65,11 +69,12 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         this.db[ID] = mapObject;
 
         // Cache ID
-        if (ID.indexOf("POINT") == 0) this.pointIDs.push(ID);
-        if (ID.indexOf("PART") == 0) this.partIDs.push(ID);
-        if (ID.indexOf("PATH") == 0) this.pathIDs.push(ID);
-        if (ID.indexOf("AREA") == 0) this.areaIDs.push(ID);
-        if (ID.indexOf("COMPLEX-AREA") == 0) this.complexAreaIDs.push(ID);
+        if (ID.indexOf("POINT_") == 0) this.pointIDs.push(ID);
+        if (ID.indexOf("PART_") == 0) this.partIDs.push(ID);
+        if (ID.indexOf("PATH_") == 0) this.pathIDs.push(ID);
+        if (ID.indexOf("AREA_") == 0) this.areaIDs.push(ID);
+        if (ID.indexOf("COMPLEX-AREA_") == 0) this.complexAreaIDs.push(ID);
+        if (ID.indexOf("COMPLEX-AREA-PART_") == 0) this.complexAreaPartIDs.push(ID);
 
         return mapObject;
     }
@@ -94,8 +99,10 @@ shared.MapDataObjectDB = class MapDataObjectDB {
                 return this.areaIDs;
             case "COMPLEX-AREA":
                 return this.complexAreaIDs;
+            case "COMPLEX-AREA-PART":
+                return this.complexAreaPartIDs;
             default:
-                return Object.keys(this.db).filter(id => id.indexOf(type) == 0); // Slow fallback
+                return Object.keys(this.db).filter(id => id.indexOf(type + "_") == 0); // Slow fallback
         }
     }
 
@@ -108,10 +115,12 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         var database = new shared.MapDataObjectDB();
 
         var db = object.db;
-        var pointIDs = Object.keys(db).filter(id => id.indexOf("POINT") == 0);
-        var pathPartIDs = Object.keys(db).filter(id => id.indexOf("PART") == 0);
-        var pathIDs = Object.keys(db).filter(id => id.indexOf("PATH") == 0);
-        var areaIDs = Object.keys(db).filter(id => id.indexOf("AREA") == 0);
+        var pointIDs = Object.keys(db).filter(id => id.indexOf("POINT_") == 0);
+        var pathPartIDs = Object.keys(db).filter(id => id.indexOf("PART_") == 0);
+        var pathIDs = Object.keys(db).filter(id => id.indexOf("PATH_") == 0);
+        var areaIDs = Object.keys(db).filter(id => id.indexOf("AREA_") == 0);
+        var complexAreaIDs = Object.keys(db).filter(id => id.indexOf("COMPLEX-AREA_") == 0);
+        var complexAreaPartIDs = Object.keys(db).filter(id => id.indexOf("COMPLEX-AREA-PART_") == 0);
 
         pointIDs.forEach(pointID => {
             let point = shared.MapPoint.mapPointFromObject(db[pointID]);
@@ -133,6 +142,16 @@ shared.MapDataObjectDB = class MapDataObjectDB {
             let area = shared.Area.areaFromObject(db[areaID]);
             database.addMapObject(area);
         });
+
+        complexAreaPartIDs.forEach(complexAreaPartID => {
+            let complexAreaPart = shared.ComplexAreaPart.complexAreaPartFromObject(db[complexAreaPartID]);
+            database.addMapObject(complexAreaPart);
+        });
+
+        complexAreaIDs.forEach(complexAreaID => {
+            let complexArea = shared.ComplexArea.complexAreaFromObject(db[complexAreaID]);
+            database.addMapObject(complexArea);
+        })
 
         return database;
     }
@@ -157,7 +176,7 @@ shared.MapDataObject = class MapDataObject {
     /** String for the ID of the data object */
     ID = null;
     /** Additional metadata, e.g. place name */
-    metadata = {}
+    metadata = {osm: {}}
 }
 
 shared.MapPoint = class MapPoint extends shared.MapDataObject {
@@ -383,6 +402,29 @@ shared.Area = class Area extends shared.MapDataObject {
     }
 }
 
+shared.ComplexAreaPart = class ComplexAreaPart extends shared.Area {
+    /**
+     * {string} indicating whether the complex area part is an inner or outer part
+     * of a complex area.
+     */
+    outerOrInner = "unknown"
+    
+    constructor (mapPointIDs, outerOrInner, data={}) {
+        super();
+
+        this.mapPointIDs = mapPointIDs;
+        this.outerOrInner = outerOrInner;
+        this.data = data;
+    }
+
+    static complexAreaPartFromObject(object) {
+        let complexAreaPart = new shared.ComplexAreaPart(object.mapPointIDs, object.outerOrInner, object.data);
+        complexAreaPart.ID = object.ID;
+        complexAreaPart.metadata = object.metadata;
+        return complexAreaPart;
+    }
+}
+
 /** 
  * Used to define area made of multiple areas
  */
@@ -399,8 +441,8 @@ shared.ComplexArea = class ComplexArea extends shared.MapDataObject {
 
     static complexAreaFromObject(object) {
         let complexArea = new shared.ComplexArea(object.outerAreaID, object.innerAreaIDs);
-        area.ID = object.ID;
-        area.metadata = object.metadata;
+        complexArea.ID = object.ID;
+        complexArea.metadata = object.metadata;
         return complexArea;
     }
 }

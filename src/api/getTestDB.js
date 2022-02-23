@@ -16,6 +16,9 @@ module.exports.getTestDB = function (shared, req, res) {
     ]
 
     var path1 = shared.Path.connectSequentialPoints(pointsPath1, database);
+    path1.metadata.pathType = {"first_level_descriptor": "highway", "second_level_descriptor": "primary"};
+
+
     database.addMapObject(path1);
 
     // Create path 2
@@ -29,7 +32,46 @@ module.exports.getTestDB = function (shared, req, res) {
     ];
 
     var path2 = shared.Path.connectSequentialPoints(pointsPath2, database);
+    path2.metadata.pathType = {"first_level_descriptor": "highway", "second_level_descriptor": "primary"};
+
     database.addMapObject(path2);
+
+    var polygonOuterPoints = [
+        new shared.MapPoint(30, 210),
+        new shared.MapPoint(100, 210),
+        new shared.MapPoint(100, 240),
+        new shared.MapPoint(30, 240)
+    ]
+
+    var polygonInnerPoints = [
+        new shared.MapPoint(35, 215),
+        new shared.MapPoint(95, 215),
+        new shared.MapPoint(95, 235),
+        new shared.MapPoint(35, 235)
+    ]
+
+    var combinedComplexPoints = polygonInnerPoints.concat(polygonOuterPoints);
+
+    for (let i = 0; i < combinedComplexPoints.length; i++) {
+        const point = combinedComplexPoints[i];
+        database.addMapObject(point);
+    }
+
+    var polygonOuterIDs = polygonOuterPoints.map(point => point.ID);
+    var polygonOuterArea = new shared.ComplexAreaPart(polygonOuterIDs, "outer");
+    polygonOuterArea.metadata.areaType = {"first_level_descriptor": "land", "second_level_descriptor": "grass"};
+
+    database.addMapObject(polygonOuterArea);
+
+    var polygonInnerIDs = polygonInnerPoints.map(point => point.ID);
+    var polygonInnerArea = new shared.ComplexAreaPart(polygonInnerIDs, "inner");
+    polygonInnerArea.metadata.areaType = {"first_level_descriptor": "land", "second_level_descriptor": "none"};
+
+    database.addMapObject(polygonInnerArea);
+
+    var testComplexArea = new shared.ComplexArea(polygonOuterArea.ID, [polygonInnerArea.ID]);
+
+    database.addMapObject(testComplexArea);
 
     res.send(database);
 }

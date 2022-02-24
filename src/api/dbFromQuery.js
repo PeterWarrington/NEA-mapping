@@ -60,9 +60,13 @@ var debug_searchFilterCount = 0;
             databaseToReturn.addMapObject(path);
         });
     
-    shared.database.getMapObjectsOfType("AREA").forEach(area => {
+    shared.database.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]).forEach(area => {
         databaseToReturn.addMapObject(area);
         area.mapPointIDs.forEach(mapPointID => databaseToReturn.addMapObject(shared.database.db[mapPointID]));
+    });
+
+    shared.database.getMapObjectsOfType("COMPLEX-AREA").forEach(area => {
+        databaseToReturn.addMapObject(area);
     });
 
     if (shared.debug_on)
@@ -107,10 +111,12 @@ var debug_searchFilterCount = 0;
     if (pathTypeError || !(acceptedPathTypes instanceof Array)) 
         return throwParamError("INVALID_PARAM: pathTypes (dbFromQuery)", res);
 
+    containsSecondLevelDescriptor = path.metadata.pathType != undefined && path.metadata.pathType["second_level_descriptor"] != undefined && acceptedPathTypes.includes(path.metadata.pathType["second_level_descriptor"]);
+    containsFirstLevelDescriptor = path.metadata.pathType != undefined && path.metadata.pathType["first_level_descriptor"] != undefined && acceptedPathTypes.includes(path.metadata.pathType["first_level_descriptor"]);
 
     let result = (acceptedPathTypes.length == 0
-        || acceptedPathTypes.includes(path.metadata.pathType["second_level_descriptor"])
-        || acceptedPathTypes.includes(path.metadata.pathType["first_level_descriptor"]));
+        || containsSecondLevelDescriptor
+        || containsFirstLevelDescriptor);
 
     if (shared.debug_on && result) debug_pathTypeFilterCount++;
 
@@ -239,9 +245,15 @@ var debug_searchFilterCount = 0;
      }
 
      // Filter areas to those that contain at least one node in viewed area
-     let rootAreas = db.getMapObjectsOfType("AREA");
+     let rootAreas = db.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]);
      for (let i = 0; i < rootAreas.length; i++) {
-         let area = new shared.Area(rootAreas[i].mapPointIDs, rootAreas[i].data);
+         let area;
+
+         if (rootAreas[i] instanceof shared.ComplexAreaPart)
+            area = new shared.ComplexAreaPart(rootAreas[i].mapPointIDs, rootAreas[i].innerOrOuter, rootAreas[i].data)
+         else if (rootAreas[i] instanceof shared.Area)
+            area = new shared.Area(rootAreas[i].mapPointIDs, rootAreas[i].data);
+
          area.ID = rootAreas[i].ID;
          area.metadata = rootAreas[i].metadata;
 
@@ -267,6 +279,15 @@ var debug_searchFilterCount = 0;
 
          // Replace array with mapPointIDs that are not in idsToRemove
          area.mapPointIDs = area.mapPointIDs.filter(mapPointID => idsToRemove.indexOf(mapPointID) == -1);
+     }
+
+     let rootComplexAreas = db.getMapObjectsOfType("COMPLEX-AREA");
+     for (let i = 0; i < rootComplexAreas.length; i++) {
+        const complexArea = rootComplexAreas[i];
+        let innerAreasDefined = complexArea.innerAreaIDs.filter(id => filteredDB.db[id] != undefined).length == complexArea.innerAreaIDs.length;
+         if (filteredDB.db[complexArea.outerAreaID] != undefined
+            && innerAreasDefined)
+                filteredDB.addMapObject(complexArea);
      }
 
      return filteredDB;

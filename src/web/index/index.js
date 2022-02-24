@@ -269,6 +269,7 @@ class CanvasState {
         if (forceUpdate || !hasBeenDrawn) {
             // Make request
             let testingDBurl = `http://localhost/api/GetTestDB`;
+            let wholeDBurl = `http://localhost/api/GetDBfromFile`;
             let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
             let testURLlimitedArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
             let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
@@ -416,6 +417,8 @@ class Path extends shared.Path {
                     areCoordsOnScreen(endX, endY, canvasState)
                         ||
                     areCoordsOnScreen(nextEndX, nextEndY, canvasState)
+                        ||
+                    areCoordsOnScreen(startX, startY, canvasState)
                 ) {
                     // Plot a line from the last plotted point to the point at currentPathPart
                     canvasState.ctx.beginPath();
@@ -539,7 +542,7 @@ class Path extends shared.Path {
     }
 
     drawLabel() {
-        canvasState.ctx.font = '8pt var(--bs-font-sans-serif)';
+        canvasState.ctx.font = '10px sans-serif';
         canvasState.ctx.fillStyle = "black";
         canvasState.ctx.strokeStyle = "white";
 
@@ -559,7 +562,7 @@ class Path extends shared.Path {
 
             if (labelText == undefined) return;
 
-            let textWidth = canvasState.ctx.measureText(labelText).width;
+            let textWidth = labelText.length * 6.5;
             let nextPart = startingPathPart.getPartByDistanceAway(canvasState.database, textWidth);
             if (!nextPart) return; // Don't draw if there isn't a suitable point to measure angle for
             let nextPoint = nextPart.getPoint(canvasState.database);
@@ -987,7 +990,7 @@ function debug_displayAreasDrawnFunc() {
     })
 }
 
-function areCoordsOnScreen(x, y, canvasState) {
+function areCoordsOnScreen(x, y) {
     return x > 0 && x < canvasState.canvas.width
             && y > 0 && y < canvasState.canvas.height;
 }

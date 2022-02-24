@@ -87,23 +87,42 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         return mapObjects;
     }
 
+    /**
+     * Gets map object IDs of ID matching type.
+     * @param {array or string} type 
+     * @returns 
+     */
     getMapObjectIDsOfType(type) {
-        switch (type) {
-            case "POINT":
-                return this.pointIDs;
-            case "PATH":
-                return this.pathIDs;
-            case "PART":
-                return this.partIDs;
-            case "AREA":
-                return this.areaIDs;
-            case "COMPLEX-AREA":
-                return this.complexAreaIDs;
-            case "COMPLEX-AREA-PART":
-                return this.complexAreaPartIDs;
-            default:
-                return Object.keys(this.db).filter(id => id.indexOf(type + "_") == 0); // Slow fallback
-        }
+        if (typeof type == "string") type = [type];
+
+        let ids = [];
+        type.forEach(type => {
+            switch (type) {
+                case "POINT":
+                    ids = ids.concat(this.pointIDs);
+                    break;
+                case "PATH":
+                    ids = ids.concat(this.pathIDs);
+                    break;
+                case "PART":
+                    ids = ids.concat(this.partIDs);
+                    break;
+                case "AREA":
+                    ids = ids.concat(this.areaIDs);
+                    break;
+                case "COMPLEX-AREA":
+                    ids = ids.concat(this.complexAreaIDs);
+                    break;
+                case "COMPLEX-AREA-PART":
+                    ids = ids.concat(this.complexAreaPartIDs);
+                    break;
+                default:
+                    ids = ids.concat(Object.keys(this.db).filter(id => id.indexOf(type + "_") == 0)); // Slow fallback
+                    break;
+            }
+        });
+
+        return ids;
     }
 
     /**
@@ -387,6 +406,13 @@ shared.Area = class Area extends shared.MapDataObject {
     */
     data 
 
+    metadata = {
+        areaType: {
+            "first_level_descriptor": "land",
+            "second_level_descriptor": ""
+        }
+    }
+
     constructor (mapPointIDs, data={}) {
         super();
         
@@ -414,6 +440,10 @@ shared.ComplexAreaPart = class ComplexAreaPart extends shared.Area {
 
         this.mapPointIDs = mapPointIDs;
         this.outerOrInner = outerOrInner;
+
+        if (this.outerOrInner == "inner")
+            this.metadata.areaType["second_level_descriptor"] =  "none";
+
         this.data = data;
     }
 

@@ -39,20 +39,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         if (mapObject.ID != null) {
             ID = mapObject.ID;
         } else {
-            if (mapObject instanceof shared.MapPoint)
-                ID += "POINT";
-            else if (mapObject instanceof shared.PathPart)
-                ID += "PART";
-            else if (mapObject instanceof shared.Path)
-                ID += "PATH";
-            else if (mapObject instanceof shared.ComplexAreaPart)
-                ID += "COMPLEX-AREA-PART"
-            else if (mapObject instanceof shared.Area)
-                ID += "AREA";
-            else if (mapObject instanceof shared.ComplexArea)
-                ID += "COMPLEX-AREA";
-            else
-                ID += "GENERIC";
+            ID += shared.MapDataObjectDB.getMapObjectType(mapObject);
 
             ID += "_";
 
@@ -87,23 +74,42 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         return mapObjects;
     }
 
+    /**
+     * Gets map object IDs of ID matching type.
+     * @param {array or string} type 
+     * @returns 
+     */
     getMapObjectIDsOfType(type) {
-        switch (type) {
-            case "POINT":
-                return this.pointIDs;
-            case "PATH":
-                return this.pathIDs;
-            case "PART":
-                return this.partIDs;
-            case "AREA":
-                return this.areaIDs;
-            case "COMPLEX-AREA":
-                return this.complexAreaIDs;
-            case "COMPLEX-AREA-PART":
-                return this.complexAreaPartIDs;
-            default:
-                return Object.keys(this.db).filter(id => id.indexOf(type + "_") == 0); // Slow fallback
-        }
+        if (typeof type == "string") type = [type];
+
+        let ids = [];
+        type.forEach(type => {
+            switch (type) {
+                case "POINT":
+                    ids = ids.concat(this.pointIDs);
+                    break;
+                case "PATH":
+                    ids = ids.concat(this.pathIDs);
+                    break;
+                case "PART":
+                    ids = ids.concat(this.partIDs);
+                    break;
+                case "AREA":
+                    ids = ids.concat(this.areaIDs);
+                    break;
+                case "COMPLEX-AREA":
+                    ids = ids.concat(this.complexAreaIDs);
+                    break;
+                case "COMPLEX-AREA-PART":
+                    ids = ids.concat(this.complexAreaPartIDs);
+                    break;
+                default:
+                    ids = ids.concat(Object.keys(this.db).filter(id => id.indexOf(type + "_") == 0)); // Slow fallback
+                    break;
+            }
+        });
+
+        return ids;
     }
 
     /**
@@ -169,6 +175,23 @@ shared.MapDataObjectDB = class MapDataObjectDB {
             if (this.db[item.ID] == undefined)
                 this.addMapObject(item);
         }
+    }
+
+    static getMapObjectType(mapObject) {
+        if (mapObject instanceof shared.MapPoint)
+            return "POINT";
+        else if (mapObject instanceof shared.PathPart)
+            return "PART";
+        else if (mapObject instanceof shared.Path)
+            return "PATH";
+        else if (mapObject instanceof shared.ComplexAreaPart)
+            return "COMPLEX-AREA-PART"
+        else if (mapObject instanceof shared.Area)
+            return "AREA";
+        else if (mapObject instanceof shared.ComplexArea)
+            return "COMPLEX-AREA";
+        else
+            return "GENERIC";
     }
 }
 
@@ -316,16 +339,14 @@ shared.Path = class Path extends shared.MapDataObject {
      * Converts a tree of connecting points to a array of all points (for drawing individual points unconnectedly).
      * @returns {MapPoint[]} 
      */
-    getAllPointsOnPath(database, currentPathPartID=this.startingPathPartID, pathIDArray=[]) {
-        if (currentPathPart.nextPathPartIDs != null && database.db[currentPathPartID].nextPathPartIDs.length != 0) {
-            for (var i=0; i < database.db[currentPathPartID].nextPathPartIDs.length; i++) {
-                if (i==0)
-                    pathArray.push(database.db[currentPathPartID].pointID);
-                pathArray.push(database.db[database.db[currentPathPartID].nextPathPartIDs[i]].pointID);
-                this.getAllPointsOnPath(database, currentPathPartID=database.db[currentPathPartID].nextPathPartIDs[i], pathIDArray);
-            }
+    getAllPointsOnPath(database) {
+        let pointArray = [];
+        let currentPathPartID = this.startingPathPartID;
+        while (database.db[currentPathPartID] != undefined) {
+            pointArray.push(database.db[currentPathPartID].getPoint(database));
+            currentPathPartID = database.db[currentPathPartID].nextPathPartIDs[0];
         }
-        return pathArray;
+        return pointArray;
     }
 
     copyPathContentsToDB(fromDB, toDB, currentPathPartID=this.startingPathPartID) {
@@ -387,11 +408,22 @@ shared.Area = class Area extends shared.MapDataObject {
     */
     data 
 
+    metadata = {
+        areaType: {
+            "first_level_descriptor": "land",
+            "second_level_descriptor": ""
+        }
+    }
+
     constructor (mapPointIDs, data={}) {
         super();
         
         this.mapPointIDs = mapPointIDs;
         this.data = data;
+    }
+
+    getAllPoints(database) {
+        return this.mapPointIDs.map(id => database.db[id]);
     }
 
     static areaFromObject(object) {
@@ -414,6 +446,10 @@ shared.ComplexAreaPart = class ComplexAreaPart extends shared.Area {
 
         this.mapPointIDs = mapPointIDs;
         this.outerOrInner = outerOrInner;
+
+        if (this.outerOrInner == "inner")
+            this.metadata.areaType["second_level_descriptor"] =  "none";
+
         this.data = data;
     }
 

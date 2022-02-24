@@ -40,6 +40,8 @@ class CanvasState {
     stokeOn = false;
     /** Stores the value of the last number of path types drawn */
     pathTypeCountLast = 0;
+    /** Maps objects onto a grid made of 10x10 squares so can be queried more quickly */
+    mapObjectsGridCache = {};
 
     /** Stores details of areas drawn to screen */
     areasDrawn = [];
@@ -148,7 +150,7 @@ class CanvasState {
     /**
      * Calls functions to draw path to screen
      */
-    draw() {
+    draw(drawBlankCanvasOnly=false) {
         // Update canvas width
         this.updateCanvasWidth();
     
@@ -159,23 +161,36 @@ class CanvasState {
         this.ctx.fillStyle = "#e6e6e6";
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        if (drawBlankCanvasOnly) return;
+
+        let objectsOnScreen = this.getObjectsOnScreen();
+
+        // Nothing to draw
+        if (Object.keys(objectsOnScreen).length == 0) return;
+
         let topLayerAreas = [];
+        let areas = objectsOnScreen["AREA"];
+        
         // Draw lower layer areas, adding lower layer areas to topLayerAreas to draw later
-        for (let i = 0; i < this.database.areaIDs.length; i++) {
-            const areaID = this.database.areaIDs[i];
-            const area = this.database.db[areaID];
+        if (areas != undefined)
+        for (let i = 0; i < areas.length; i++) {
+            const area = areas[i];
             if (area.metadata.areaType["first_level_descriptor"] == "land") // TODO: Create "layer" property and read from this instead
                 area.draw(this);
             else
                 topLayerAreas.push(area);
         }
+
         for (let i = 0; i < topLayerAreas.length; i++) {
             const area = topLayerAreas[i];
             area.draw(this);
         }
 
-        for (let i = 0; i < this.database.complexAreaIDs.length; i++) {
-            const complexArea = canvasState.database.db[this.database.complexAreaIDs[i]];
+        let complexAreas = objectsOnScreen["COMPLEX-AREA"];
+
+        if (complexAreas != undefined)
+        for (let i = 0; i < complexAreas.length; i++) {
+            const complexArea = complexAreas[i];
             complexArea.draw();
         }
         
@@ -185,9 +200,10 @@ class CanvasState {
             return;
         }
 
-        for (let i = 0; i < this.database.pathIDs.length; i++) {
-            const pathID = this.database.pathIDs[i];
-            let path = this.database.db[pathID];
+        let paths = objectsOnScreen["PATH"];
+        if (paths != undefined)
+        for (let i = 0; i < paths.length; i++) {
+            let path = paths[i];
             let acceptedPathTypes = this.getPathTypes();
 
             // Only plot line if is one of accepted path types for zoom level
@@ -201,9 +217,10 @@ class CanvasState {
         this.labelsDrawn = [];
 
         // Draw highway labels
-        for (let i = 0; i < this.database.pathIDs.length; i++) {
-            const pathID = this.database.pathIDs[i];
-            this.database.db[pathID].drawLabel();
+        if (paths != undefined)
+        for (let i = 0; i < paths.length; i++) {
+            const path = paths[i];
+            path.drawLabel();
         }
 
         if (debug_displayAreasDrawn) debug_displayAreasDrawnFunc();
@@ -269,6 +286,7 @@ class CanvasState {
         if (forceUpdate || !hasBeenDrawn) {
             // Make request
             let testingDBurl = `http://localhost/api/GetTestDB`;
+            let wholeDBurl = `http://localhost/api/GetDBfromFile`;
             let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
             let testURLlimitedArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
             let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
@@ -299,6 +317,8 @@ class CanvasState {
 
         canvasState.database.mergeWithOtherDB(database);
 
+        this.cacheDataToGrid();
+
         if(shared.debug_on) 
             console.log(`Computed database currently has ${canvasState.database.getMapObjectsOfType("PATH").length} paths.`);
 
@@ -316,6 +336,120 @@ class CanvasState {
 
         // Hide loading indicator
         document.getElementById("loading-indicator-container").style.display = "none";
+    }
+
+    cacheMapObjectToGrid(mapObject, xGridCoord=mapObject.xGridCoord, yGridCoord=mapObject.yGridCoord) {
+        let square = this.mapObjectsGridCache[`${xGridCoord}x${yGridCoord}`];
+
+        if (square == undefined)
+            square = [];
+
+        if (square.find(mapObjId => mapObjId == mapObject.ID) == undefined)
+            square.push(mapObject.ID);
+        
+        this.mapObjectsGridCache[`${xGridCoord}x${yGridCoord}`] = square;
+    }
+
+    /**
+     * Caches data to a hashmap grid, so that the queries for
+     * which points are on screen can be conducted faster.
+     * (JS Objects are typically implemented as hashmaps, but
+     * aren't explicitly referred to as such.)
+     */
+    cacheDataToGrid() {
+        let points = this.database.getMapObjectsOfType("POINT");
+        for (let i = 0; i < points.length; i++) {
+            const point = points[i];
+            this.cacheMapObjectToGrid(point);
+        }
+
+        let pathParts = this.database.getMapObjectsOfType("PART");
+        for (let i = 0; i < pathParts.length; i++) {
+            const part = pathParts[i];
+            this.cacheMapObjectToGrid(part);
+        }
+
+        let paths = this.database.getMapObjectsOfType("PATH");
+        for (let i = 0; i < paths.length; i++) {
+            const path = paths[i];
+            path.getAllPointsOnPath(canvasState.database).forEach(point => {
+                this.cacheMapObjectToGrid(path, point.xGridCoord, point.yGridCoord);
+            });
+        }
+
+        let areas = this.database.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]);
+        for (let i = 0; i < areas.length; i++) {
+            const area = areas[i];
+            area.getAllPoints(canvasState.database).forEach(point => {
+                this.cacheMapObjectToGrid(area, point.xGridCoord, point.yGridCoord);
+            })
+        }
+
+        let complexAreas = this.database.getMapObjectsOfType("COMPLEX-AREA");
+        for (let i = 0; i < complexAreas.length; i++) {
+            const complexArea = complexAreas[i];
+            let areas = complexArea.innerAreaIDs.map(id => this.database.db[id]);
+            areas.push(this.database.db[complexArea.outerAreaID]);
+
+            for (let j = 0; j < areas.length; j++) {
+                const area = areas[j];
+                area.getAllPoints(canvasState.database).forEach(point => {
+                    this.cacheMapObjectToGrid(complexArea, point.xGridCoord, point.yGridCoord);
+                })
+            }
+        }
+    }
+
+    /**
+     * Returns those map objects on screen as per mapObjectsGridCache.
+     */
+    getObjectsOnScreen() {
+        var objectsOnScreen = {};
+        let xTranslation = canvasState.xTranslation;
+        let yTranslation = canvasState.yTranslation;
+        let zoomLevel = canvasState.zoomLevel;
+
+        let xInitial = Math.floor((-xTranslation)/10)*10;
+        let xIncrement = 10;
+        let xLimit = Math.floor(((canvasState.canvas.width/(zoomLevel*1.5)) - xTranslation)/10)*10;
+
+        let yInitial = Math.floor((-yTranslation)/10)*10;
+        let yIncrement = 10;
+        let yLimit = Math.floor(((canvasState.canvas.height/zoomLevel) - yTranslation)/10)*10;
+
+        // // Code to just return all object IDs for testing
+        // Object.keys(canvasState.database.db).forEach(mapObjectID => {
+        //     let type = mapObjectID.slice(0, mapObjectID.indexOf("_"));
+        //     if (objectIDsOnScreen[type] == undefined) objectIDsOnScreen[type] = [];
+        //     objectIDsOnScreen[type].push(mapObjectID);
+        // });
+
+        var objectIDsAdded = {};
+
+        for (let x = xInitial; 
+        x < xLimit; 
+        x += xIncrement) {
+            for (let y = yInitial; 
+            y < yLimit; 
+            y += yIncrement) {
+                let square = canvasState.mapObjectsGridCache[`${x}x${y}`];
+                if (square != undefined) {
+                    for (let i = 0; i < square.length; i++) {
+                        const mapObjectID = square[i];
+                        if (!objectIDsAdded[mapObjectID]) {
+                            let type = mapObjectID.slice(0, mapObjectID.indexOf("_"));
+
+                            if (objectsOnScreen[type] == undefined) objectsOnScreen[type] = [];
+
+                            objectsOnScreen[type].push(this.database.db[mapObjectID]);
+                            objectIDsAdded[mapObjectID] = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        return objectsOnScreen;
     }
 
     /**
@@ -408,39 +542,29 @@ class Path extends shared.Path {
                 let endX = canvasState.database.db[currentPathPart.pointID].displayedX;
                 let endY = canvasState.database.db[currentPathPart.pointID].displayedY;
 
-                let nextEndX = canvasState.database.db[nextPointer.pointID].displayedX;
-                let nextEndY = canvasState.database.db[nextPointer.pointID].displayedY;
+                // Plot a line from the last plotted point to the point at currentPathPart
+                canvasState.ctx.beginPath();
 
-                // Draw point if this point is on screen, or the next point is on screen
-                if (
-                    areCoordsOnScreen(endX, endY, canvasState)
-                        ||
-                    areCoordsOnScreen(nextEndX, nextEndY, canvasState)
-                ) {
-                    // Plot a line from the last plotted point to the point at currentPathPart
-                    canvasState.ctx.beginPath();
+                canvasState.ctx.lineWidth = this.data.borderWidth + this.data.lineWidth;
+                canvasState.ctx.strokeStyle = this.data.borderStyle;
 
-                    canvasState.ctx.lineWidth = this.data.borderWidth + this.data.lineWidth;
-                    canvasState.ctx.strokeStyle = this.data.borderStyle;
+                canvasState.ctx.moveTo(startX, startY);
+                canvasState.ctx.lineTo(endX, endY);
 
-                    canvasState.ctx.moveTo(startX, startY);
-                    canvasState.ctx.lineTo(endX, endY);
+                canvasState.ctx.stroke();
 
-                    canvasState.ctx.stroke();
+                canvasState.ctx.beginPath();
 
-                    canvasState.ctx.beginPath();
+                canvasState.ctx.lineWidth = this.data.lineWidth;
+                canvasState.ctx.strokeStyle = this.data.fillStyle;
 
-                    canvasState.ctx.lineWidth = this.data.lineWidth;
-                    canvasState.ctx.strokeStyle = this.data.fillStyle;
+                canvasState.ctx.moveTo(startX, startY);
+                canvasState.ctx.lineTo(endX, endY);
 
-                    canvasState.ctx.moveTo(startX, startY);
-                    canvasState.ctx.lineTo(endX, endY);
+                canvasState.ctx.stroke();
 
-                    canvasState.ctx.stroke();
-
-                    startX = endX;
-                    startY = endY;
-                }
+                startX = endX;
+                startY = endY;
                 
                 for (let j = 1; j < currentPathPart.nextPathPartIDs.length; j++) {
                     startingPathPartsToDraw.push(canvasState.database.db[currentPathPart.nextPathPartIds[j]]);
@@ -539,7 +663,7 @@ class Path extends shared.Path {
     }
 
     drawLabel() {
-        canvasState.ctx.font = '8pt var(--bs-font-sans-serif)';
+        canvasState.ctx.font = '10px sans-serif';
         canvasState.ctx.fillStyle = "black";
         canvasState.ctx.strokeStyle = "white";
 
@@ -559,7 +683,7 @@ class Path extends shared.Path {
 
             if (labelText == undefined) return;
 
-            let textWidth = canvasState.ctx.measureText(labelText).width;
+            let textWidth = labelText.length * 6.5;
             let nextPart = startingPathPart.getPartByDistanceAway(canvasState.database, textWidth);
             if (!nextPart) return; // Don't draw if there isn't a suitable point to measure angle for
             let nextPoint = nextPart.getPoint(canvasState.database);
@@ -576,7 +700,6 @@ class Path extends shared.Path {
 
             // Only draw if there isn't another label close by and the coords are on screen.
             // Check by iterating through labels drawn
-            if (!areCoordsOnScreen(newLabel.x, newLabel.y, canvasState)) return;
             for (let i = 0; i < canvasState.labelsDrawn.length; i++) {
                 const oldLabel = canvasState.labelsDrawn[i];
                 let minDistanceAwayFromOtherLabels = textWidth;
@@ -640,6 +763,16 @@ class PathPart extends shared.PathPart {
 
         return possiblePart;
     }
+
+    get xGridCoord() {
+        let mapPoint = this.getPoint(canvasState.database);
+        return Math.floor(mapPoint.x/10) * 10;
+    } 
+
+    get yGridCoord() {
+        let mapPoint = this.getPoint(canvasState.database);
+        return Math.floor(mapPoint.y/10) * 10;
+    }
 }
 
 shared.PathPart = PathPart;
@@ -684,6 +817,14 @@ class MapPoint extends shared.MapPoint {
         return (this.y + canvasState.yTranslation) * canvasState.zoomLevel;
     }
 
+    get xGridCoord() {
+        return Math.floor(this.x/10) * 10;
+    } 
+
+    get yGridCoord() {
+        return Math.floor(this.y/10) * 10;
+    }
+
     /**
      * Function to draw the point to the screen
      */
@@ -717,15 +858,12 @@ class Area extends shared.Area {
     }
 
     draw() {
-        // Only draw if a point of the area is on screen
-        if (this.isAreaOnScreen()){
-            this.setAreaDrawStyle(canvasState);
-            canvasState.ctx.beginPath();
+        this.setAreaDrawStyle(canvasState);
+        canvasState.ctx.beginPath();
 
-            this.plotPath();
+        this.plotPath();
 
-            Area.finishFillArea();
-        }
+        Area.finishFillArea();
     }
 
     plotPath(reverse=false) {
@@ -851,9 +989,6 @@ class ComplexArea extends shared.ComplexArea {
     }
 
     draw() {
-        // Draw outer area
-        if (!this.outerArea.isAreaOnScreen()) return;
-
         this.outerArea.setAreaDrawStyle(canvasState);
         canvasState.ctx.beginPath();
 
@@ -940,7 +1075,7 @@ function MapTest() {
     canvasState.updateCanvasWidth();
 
     // Display blank canvas
-    canvasState.draw();
+    canvasState.draw(true);
 
     // Get test db from server
     canvasState.httpReq = new XMLHttpRequest();
@@ -987,7 +1122,7 @@ function debug_displayAreasDrawnFunc() {
     })
 }
 
-function areCoordsOnScreen(x, y, canvasState) {
+function areCoordsOnScreen(x, y) {
     return x > 0 && x < canvasState.canvas.width
             && y > 0 && y < canvasState.canvas.height;
 }

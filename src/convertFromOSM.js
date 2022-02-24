@@ -146,6 +146,8 @@ multipolygons.forEach(multipolygon => {
   mapDatabase.addMapObject(complexArea);
 })
 
+let complexAreas = mapDatabase.getMapObjectsOfType("COMPLEX-AREA");
+
 // Extract nodes for each way and creating paths
 console.log("Final stage - Generating DB...");
 
@@ -215,11 +217,16 @@ for (let w = 0; w < wLength; w++) {
 
     // Add metadata to area mapObject
     Object.assign(area.metadata, {"osm": extractMetadata(way)});
-    area.metadata.areaType = {"first_level_descriptor": wayType};
-    if (wayType == "water_area" && area.metadata.osm.waterway != undefined)
+    if (wayType != "inner" && wayType != "outer")
+      area.metadata.areaType = {"first_level_descriptor": wayType};
+    if (area.metadata.osm.waterway != undefined)
       area.metadata.areaType["second_level_descriptor"] = area.metadata.osm.waterway;
-    else if (wayType == "land" && area.metadata.osm.landuse != undefined)
+    else if (area.metadata.osm.landuse != undefined)
       area.metadata.areaType["second_level_descriptor"] = area.metadata.osm.landuse;
+    else if (wayType == "outer") {
+      area.metadata.areaType["first_level_descriptor"] = "land";
+    } else if (wayType == "inner")
+      area.metadata.areaType["second_level_descriptor"] = "none";
 
     mapDatabase.addMapObject(area);
   } 
@@ -230,7 +237,6 @@ for (let w = 0; w < wLength; w++) {
 
 // Associate complex area parts with complex areas
 let complexAreaParts = mapDatabase.getMapObjectsOfType("COMPLEX-AREA-PART");
-let complexAreas = mapDatabase.getMapObjectsOfType("COMPLEX-AREA");
 
 console.log("\nProcessing complex areas...");
 let complexAreasLength = complexAreas.length;
@@ -296,8 +302,6 @@ function convertNodeToMapPoint(node) {
  * @returns {string} the type of way
  */
 function getWayType(way, wayIDsComposingMultipolygons=[]) {
-  if (way.name != "way") return "no_way";
-
   let wayId = "";
   if (way.attributes.id != undefined) wayId = way.attributes.id;
   else if (way.attributes.ref != undefined) wayId = way.attributes.ref;
@@ -317,6 +321,9 @@ function getWayType(way, wayIDsComposingMultipolygons=[]) {
     if (element.name == "tag" && element.attributes.k == "natural" && element.attributes.v == "water") return "water_area"; 
     if (element.name == "tag" && element.attributes.k == "landuse") return "land";
   }
+
+  if (way.name != "way") return "no_way";
+
   return "other";
 }
 

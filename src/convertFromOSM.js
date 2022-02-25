@@ -256,13 +256,13 @@ console.log("Database generated. Writing to file...");
 // Write database to file
 var dbFilename = `db-${Date.now()}.json`;
 try {
-  let dbKeys = Object.keys(mapDatabase.db);
+  let dbKeys = mapDatabase.db.keys();
   let writeStream = fs.createWriteStream(dbFilename);
 
   writeStream.write(`{"db":{`);
   for (let i = 0; i < dbKeys.length; i++) {
     const dbKey = dbKeys[i];
-    writeStream.write(`"${dbKey}":${JSON.stringify(mapDatabase.db[dbKey])}`);
+    writeStream.write(`"${dbKey}":${JSON.stringify(mapDatabase.db.get(dbKey))}`);
     if (i+1 < dbKeys.length) writeStream.write(`,`);
 
     process.stdout.cursorTo(0);

@@ -15,7 +15,7 @@ shared.debug_on = true;
  */
 shared.MapDataObjectDB = class MapDataObjectDB {
     /** Object, where key is the ID of the MapObject */
-    db = {}
+    db = new Map();
     /** Caches point IDs */
     pointIDs = []
     /** Caches path IDs */
@@ -53,7 +53,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
 
         // Add to DB
         mapObject.ID = ID;
-        this.db[ID] = mapObject;
+        this.db.set(ID, mapObject);
 
         // Cache ID
         if (ID.indexOf("POINT_") == 0) this.pointIDs.push(ID);
@@ -69,7 +69,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
     getMapObjectsOfType(type) {
         let mapObjects = [];
         let objectIDs = this.getMapObjectIDsOfType(type);
-        objectIDs.forEach((objectID) => mapObjects.push(this.db[objectID]));
+        objectIDs.forEach((objectID) => mapObjects.push(this.db.get(objectID)));
 
         return mapObjects;
     }
@@ -104,7 +104,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
                     ids = ids.concat(this.complexAreaPartIDs);
                     break;
                 default:
-                    ids = ids.concat(Object.keys(this.db).filter(id => id.indexOf(type + "_") == 0)); // Slow fallback
+                    ids = ids.concat(this.db.keys().filter(id => id.indexOf(type + "_") == 0)); // Slow fallback
                     break;
             }
         });
@@ -167,12 +167,12 @@ shared.MapDataObjectDB = class MapDataObjectDB {
      * @param {MapDataObjectDB} otherDB 
      */
     mergeWithOtherDB(otherDB) {
-        let otherDBitems = Object.values(otherDB.db);
+        let otherDBitems = Array.from(otherDB.db.values());
 
         for (let i = 0; i < otherDBitems.length; i++) {
             const item = otherDBitems[i];
 
-            if (this.db[item.ID] == undefined)
+            if (this.db.get(item.ID) == undefined)
                 this.addMapObject(item);
         }
     }
@@ -277,7 +277,7 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
         if (steps == 0 || pathPart.nextPathPartIDs.length == 0)
             return pathPart;
         else {
-            var nextPathPart = database.db[pathPart.nextPathPartIDs[0]];
+            var nextPathPart = database.db.get(pathPart.nextPathPartIDs[0]);
             return this.getPartByStepsAway(database, nextPathPart, steps-1);
         }
     }
@@ -291,12 +291,12 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
     }
 
     getPoint(database) {
-        return database.db[this.pointID];
+        return database.db.get(this.pointID);
     }
 
     getNextPart(database) {
         if (this.nextPathPartIDs.length == 0) return false;
-        return database.db[this.nextPathPartIDs[0]]
+        return database.db.get(this.nextPathPartIDs[0]);
     }
 
     getNextPoint(database) {
@@ -342,18 +342,18 @@ shared.Path = class Path extends shared.MapDataObject {
     getAllPointsOnPath(database) {
         let pointArray = [];
         let currentPathPartID = this.startingPathPartID;
-        while (database.db[currentPathPartID] != undefined) {
-            pointArray.push(database.db[currentPathPartID].getPoint(database));
-            currentPathPartID = database.db[currentPathPartID].nextPathPartIDs[0];
+        while (database.db.get(currentPathPartID) != undefined) {
+            pointArray.push(database.db.get(currentPathPartID).getPoint(database));
+            currentPathPartID = database.db.get(currentPathPartID).nextPathPartIDs[0];
         }
         return pointArray;
     }
 
     copyPathContentsToDB(fromDB, toDB, currentPathPartID=this.startingPathPartID) {
-        var currentPathPart = fromDB.db[currentPathPartID];
+        var currentPathPart = fromDB.db.get(currentPathPartID);
 
         toDB.addMapObject(currentPathPart);
-        toDB.addMapObject(fromDB.db[fromDB.db[currentPathPartID].pointID]);
+        toDB.addMapObject(fromDB.db.get(fromDB.db.get(currentPathPartID).pointID));
 
         if (currentPathPart.nextPathPartIDs != null && currentPathPart.nextPathPartIDs.length != 0)
             for (var i=0; i < currentPathPart.nextPathPartIDs.length; i++)
@@ -423,7 +423,7 @@ shared.Area = class Area extends shared.MapDataObject {
     }
 
     getAllPoints(database) {
-        return this.mapPointIDs.map(id => database.db[id]);
+        return this.mapPointIDs.map(id => database.db.get(id));
     }
 
     static areaFromObject(object) {

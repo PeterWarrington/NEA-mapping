@@ -16,13 +16,13 @@ var debug_searchFilterCount = 0;
     var databaseToReturn = new shared.MapDataObjectDB();
 
     if (shared.debug_on) 
-        logger.log(`Root database has ${Object.keys(shared.database.db).length} items.`);
+        logger.log(`Root database has ${shared.database.db.keys().length} items.`);
         
     let startTime = Date.now();
 
     // Filter everything with search term
     if (req.query.searchTerm != undefined && req.query.searchTerm != false) {
-        let dbObjects = Object.values(shared.database.db);
+        let dbObjects = shared.database.db.values();
         let dbObjectsLength = dbObjects.length;
         for (let i = 0; i < dbObjectsLength; i++) {
             const mapObject = dbObjects[i];
@@ -62,7 +62,7 @@ var debug_searchFilterCount = 0;
     
     shared.database.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]).forEach(area => {
         databaseToReturn.addMapObject(area);
-        area.mapPointIDs.forEach(mapPointID => databaseToReturn.addMapObject(shared.database.db[mapPointID]));
+        area.mapPointIDs.forEach(mapPointID => databaseToReturn.addMapObject(shared.database.db.get(mapPointID)));
     });
 
     shared.database.getMapObjectsOfType("COMPLEX-AREA").forEach(area => {
@@ -83,12 +83,12 @@ var debug_searchFilterCount = 0;
 
     let returnString = "";
 
-    let dbKeys = Object.keys(databaseToReturn.db);
+    let dbKeys = Array.from(databaseToReturn.db.keys());
     
     returnString += `{"db":{`;
     for (let i = 0; i < dbKeys.length; i++) {
         const dbKey = dbKeys[i];
-        returnString += `"${dbKey}":${JSON.stringify(databaseToReturn.db[dbKey])}`;
+        returnString += `"${dbKey}":${JSON.stringify(databaseToReturn.db.get(dbKey))}`;
         if (i+1 < dbKeys.length) returnString += `,`;
     }
 
@@ -216,7 +216,7 @@ var debug_searchFilterCount = 0;
 
      for (let i = 0; i < rootDBparts.length; i++) {
          const part = rootDBparts[i];
-         if (filteredDB.db[part.pointID] != undefined)
+         if (filteredDB.db.get(part.pointID) != undefined)
             filteredDB.addMapObject(part);
      }
 
@@ -231,11 +231,11 @@ var debug_searchFilterCount = 0;
          if (partOfPathInFilteredDB) {
             // Iterate through path parts, adding point and path part to DB before adding path
             let currentPathPartID = path.startingPathPartID;
-            let getCurrentPathPart = () => db.db[currentPathPartID];
+            let getCurrentPathPart = () => db.db.get(currentPathPartID);
             let getCurrentPointID = () => getCurrentPathPart().pointID;
             do {
-                if (filteredDB.db[getCurrentPointID()] == undefined) {
-                    filteredDB.addMapObject(db.db[getCurrentPointID()]);
+                if (filteredDB.db.get(getCurrentPointID()) == undefined) {
+                    filteredDB.addMapObject(db.db.get(getCurrentPointID()));
                 }
                 filteredDB.addMapObject(getCurrentPathPart());
                 currentPathPartID = getCurrentPathPart().nextPathPartIDs[0];
@@ -262,7 +262,7 @@ var debug_searchFilterCount = 0;
 
          for (let j = 0; j < area.mapPointIDs.length; j++) {
              const mapPointID = area.mapPointIDs[j];
-             if (filteredDB.db[mapPointID] != undefined) {
+             if (filteredDB.db.get(mapPointID) != undefined) {
                 if (!areaAddedToDB)
                     filteredDB.addMapObject(area);
                 areaAddedToDB = true;
@@ -273,8 +273,8 @@ var debug_searchFilterCount = 0;
          if (areaAddedToDB)
          for (let j = 0; j < area.mapPointIDs.length; j++) {
             const mapPointID = area.mapPointIDs[j];
-            if (filteredDB.db[mapPointID] == undefined)
-                filteredDB.addMapObject(db.db[mapPointID]);
+            if (filteredDB.db.get(mapPointID) == undefined)
+                filteredDB.addMapObject(db.db.get(mapPointID));
         }
 
          // Replace array with mapPointIDs that are not in idsToRemove
@@ -284,8 +284,8 @@ var debug_searchFilterCount = 0;
      let rootComplexAreas = db.getMapObjectsOfType("COMPLEX-AREA");
      for (let i = 0; i < rootComplexAreas.length; i++) {
         const complexArea = rootComplexAreas[i];
-        let innerAreasDefined = complexArea.innerAreaIDs.filter(id => filteredDB.db[id] != undefined).length == complexArea.innerAreaIDs.length;
-         if (filteredDB.db[complexArea.outerAreaID] != undefined
+        let innerAreasDefined = complexArea.innerAreaIDs.filter(id => filteredDB.db.get(id) != undefined).length == complexArea.innerAreaIDs.length;
+         if (filteredDB.db.get(complexArea.outerAreaID) != undefined
             && innerAreasDefined)
                 filteredDB.addMapObject(complexArea);
      }
@@ -301,9 +301,9 @@ var debug_searchFilterCount = 0;
   * @returns {string} pathPartID
   */
  function resolvePathPartID(filteredDB, db, pathPartID) {
-    while (filteredDB.db[pathPartID] == undefined) {
-        if (db.db[pathPartID].nextPathPartIDs.length != 0)
-            pathPartID = db.db[pathPartID].nextPathPartIDs[0];
+    while (filteredDB.db.get(pathPartID) == undefined) {
+        if (db.db.get(pathPartID).nextPathPartIDs.length != 0)
+            pathPartID = db.db.get(pathPartID).nextPathPartIDs[0];
         else {
             // The path has ended, flag to replace with empty array
             pathPartID = false;

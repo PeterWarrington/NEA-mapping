@@ -43,7 +43,7 @@ class CanvasState {
     /** Maps objects onto a grid made of 10x10 squares so can be queried more quickly */
     mapObjectsGridCache = new Map();
     /** Grid square size */
-    gridSquareSize = 50;
+    gridSquareSize = 10;
 
     /** Stores details of areas drawn to screen */
     areasDrawn = [];
@@ -359,6 +359,8 @@ class CanvasState {
      * aren't explicitly referred to as such.)
      */
     cacheDataToGrid() {
+        this.mapObjectsGridCache.clear();
+        
         let points = this.database.getMapObjectsOfType("POINT");
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
@@ -390,8 +392,8 @@ class CanvasState {
         let complexAreas = this.database.getMapObjectsOfType("COMPLEX-AREA");
         for (let i = 0; i < complexAreas.length; i++) {
             const complexArea = complexAreas[i];
-            let areas = complexArea.innerAreaIDs.map(id => this.database.db[id]);
-            areas.push(this.database.db[complexArea.outerAreaID]);
+            let areas = complexArea.innerAreaIDs.map(id => this.database.db.get(id));
+            areas.push(this.database.db.get(complexArea.outerAreaID));
 
             for (let j = 0; j < areas.length; j++) {
                 const area = areas[j];
@@ -411,15 +413,15 @@ class CanvasState {
         let yTranslation = canvasState.yTranslation;
         let zoomLevel = canvasState.zoomLevel;
 
-        let xInitial = Math.floor((-xTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize;
+        let xInitial = Math.floor((-xTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize - 2*canvasState.gridSquareSize;
         let xIncrement = canvasState.gridSquareSize;
-        let xLimit = Math.floor(((canvasState.canvas.width/(zoomLevel*1.5)) - xTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize;
+        let xLimit = Math.floor(((canvasState.canvas.width/(zoomLevel*1.5)) - xTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize + 2*canvasState.gridSquareSize;
 
-        let yInitial = Math.floor((-yTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize;
+        let yInitial = Math.floor((-yTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize - 2*canvasState.gridSquareSize;
         let yIncrement = canvasState.gridSquareSize;
-        let yLimit = Math.floor(((canvasState.canvas.height/zoomLevel) - yTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize;
+        let yLimit = Math.floor(((canvasState.canvas.height/zoomLevel) - yTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize + 2*canvasState.gridSquareSize;
 
-        var objectIDsAdded = {};
+        var objectIDsAdded = new Map();
 
         for (let x = xInitial; 
         x < xLimit; 
@@ -431,13 +433,13 @@ class CanvasState {
                 if (square != undefined) {
                     for (let i = 0; i < square.length; i++) {
                         const mapObjectID = square[i];
-                        if (!objectIDsAdded[mapObjectID]) {
+                        if (!objectIDsAdded.get(mapObjectID)) {
                             let type = mapObjectID.slice(0, mapObjectID.indexOf("_"));
 
                             if (objectsOnScreen[type] == undefined) objectsOnScreen[type] = [];
 
-                            objectsOnScreen[type].push(this.database.db[mapObjectID]);
-                            objectIDsAdded[mapObjectID] = true;
+                            objectsOnScreen[type].push(this.database.db.get(mapObjectID));
+                            objectIDsAdded.set(mapObjectID, true);
                         }
                     }
                 }
@@ -512,30 +514,30 @@ class Path extends shared.Path {
         this.getPathStyle();
         
         // Initialize array containing the  initial PathParts to draw
-        let startingPathPartsToDraw = [canvasState.database.db[this.startingPathPartID]];
+        let startingPathPartsToDraw = [canvasState.database.db.get(this.startingPathPartID)];
 
         const skipOneInEveryNo = 1;
 
         // Iterate through startingPathPartsToDraw
         for (let i = 0; i < startingPathPartsToDraw.length; i++) {
             const startingPathPart = startingPathPartsToDraw[i];
-            canvasState.database.db[startingPathPart.pointID].canvasState = canvasState;
+            canvasState.database.db.get(startingPathPart.pointID).canvasState = canvasState;
 
             // Move to the starting point
-            let startX = canvasState.database.db[startingPathPart.pointID].displayedX;
-            let startY = canvasState.database.db[startingPathPart.pointID].displayedY;
+            let startX = canvasState.database.db.get(startingPathPart.pointID).displayedX;
+            let startY = canvasState.database.db.get(startingPathPart.pointID).displayedY;
 
             // If we get to a branch, push the other branches to startingPathPartsToDraw to iterate through later
             let currentPathPart = startingPathPart;
             while (currentPathPart.nextPathPartIDs.length >= 0) {
-                canvasState.database.db[currentPathPart.pointID].canvasState = canvasState;
+                canvasState.database.db.get(currentPathPart.pointID).canvasState = canvasState;
                 
                 // Advance pointer to next connecting point in the closest branch
                 // Or if skipping, skip to the one after that if not at the end of the path
                 let nextPointer = shared.PathPart.getPartByStepsAway(canvasState.database, currentPathPart, 3);
 
-                let endX = canvasState.database.db[currentPathPart.pointID].displayedX;
-                let endY = canvasState.database.db[currentPathPart.pointID].displayedY;
+                let endX = canvasState.database.db.get(currentPathPart.pointID).displayedX;
+                let endY = canvasState.database.db.get(currentPathPart.pointID).displayedY;
 
                 // Plot a line from the last plotted point to the point at currentPathPart
                 canvasState.ctx.beginPath();
@@ -562,7 +564,7 @@ class Path extends shared.Path {
                 startY = endY;
                 
                 for (let j = 1; j < currentPathPart.nextPathPartIDs.length; j++) {
-                    startingPathPartsToDraw.push(canvasState.database.db[currentPathPart.nextPathPartIds[j]]);
+                    startingPathPartsToDraw.push(canvasState.database.db.get(currentPathPart).nextPathPartIds[j]);
                 }
 
                 if (currentPathPart.nextPathPartIDs.length == 0) break;
@@ -663,12 +665,12 @@ class Path extends shared.Path {
         canvasState.ctx.strokeStyle = "white";
 
         if (!debug_drawHighwayLabels_smart && debug_drawAllHighwayLabelsTest && this.metadata.osm.ref != undefined) {
-            let startingPoint = canvasState.database.db[canvasState.database.db[this.startingPathPartID].pointID];
+            let startingPoint = canvasState.database.db.get(canvasState.database.db.get(this.startingPathPartID).pointID);
             canvasState.ctx.fillText(this.metadata.osm.ref, startingPoint.displayedX, startingPoint.displayedY);
         }
 
         if (debug_drawHighwayLabels_smart) {
-            let startingPathPart = canvasState.database.db[this.startingPathPartID];
+            let startingPathPart = canvasState.database.db.get(this.startingPathPartID);
             let startingPoint = startingPathPart.getPoint(canvasState.database);
             
             // Get label text
@@ -872,7 +874,7 @@ class Area extends shared.Area {
 
         for (let i = 0; i < mapPointIDs.length; i++) {
             const mapPointID = mapPointIDs[i];
-            const mapPoint = canvasState.database.db[mapPointID];
+            const mapPoint = canvasState.database.db.get(mapPointID);
 
             if (i==0) canvasState.ctx.moveTo(mapPoint.displayedX, mapPoint.displayedY);
             else canvasState.ctx.lineTo(mapPoint.displayedX, mapPoint.displayedY);
@@ -893,8 +895,8 @@ class Area extends shared.Area {
         // https://stackoverflow.com/a/1165943
         let areaSum = 0;
         for (let i = 0; i < pointIDs.length - 1; i++) {
-            const point = canvasState.database.db[pointIDs[i]];
-            const pointAfter = canvasState.database.db[pointIDs[i+1]];
+            const point = canvasState.database.db.get(pointIDs[i]);
+            const pointAfter = canvasState.database.db.get(pointIDs[i+1]);
             areaSum += (pointAfter.x - point.x) * (pointAfter.y + pointAfter.y);
         }
         return areaSum >= 0;
@@ -907,7 +909,7 @@ class Area extends shared.Area {
     isAreaOnScreen() {
         let isApointOnScreen = false;
         for (let i = 0; !isApointOnScreen && i < this.mapPointIDs.length; i++) {
-            const mapPoint = canvasState.database.db[this.mapPointIDs[i]];
+            const mapPoint = canvasState.database.db.get(this.mapPointIDs[i]);
             if (!isApointOnScreen) isApointOnScreen = areCoordsOnScreen(mapPoint.displayedX, mapPoint.displayedY, canvasState);
         }
 
@@ -976,11 +978,11 @@ class ComplexArea extends shared.ComplexArea {
     }
 
     get outerArea() {
-        return canvasState.database.db[this.outerAreaID];
+        return canvasState.database.db.get(this.outerAreaID);
     }
 
     get innerAreas() {
-        return this.innerAreaIDs.map(id => canvasState.database.db[id]);
+        return this.innerAreaIDs.map(id => canvasState.database.db.get(id));
     }
 
     draw() {

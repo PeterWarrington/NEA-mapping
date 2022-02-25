@@ -41,7 +41,9 @@ class CanvasState {
     /** Stores the value of the last number of path types drawn */
     pathTypeCountLast = 0;
     /** Maps objects onto a grid made of 10x10 squares so can be queried more quickly */
-    mapObjectsGridCache = {};
+    mapObjectsGridCache = new Map();
+    /** Grid square size */
+    gridSquareSize = 50;
 
     /** Stores details of areas drawn to screen */
     areasDrawn = [];
@@ -339,7 +341,7 @@ class CanvasState {
     }
 
     cacheMapObjectToGrid(mapObject, xGridCoord=mapObject.xGridCoord, yGridCoord=mapObject.yGridCoord) {
-        let square = this.mapObjectsGridCache[`${xGridCoord}x${yGridCoord}`];
+        let square = this.mapObjectsGridCache.get(`${xGridCoord}x${yGridCoord}`);
 
         if (square == undefined)
             square = [];
@@ -347,7 +349,7 @@ class CanvasState {
         if (square.find(mapObjId => mapObjId == mapObject.ID) == undefined)
             square.push(mapObject.ID);
         
-        this.mapObjectsGridCache[`${xGridCoord}x${yGridCoord}`] = square;
+        this.mapObjectsGridCache.set(`${xGridCoord}x${yGridCoord}`, square);
     }
 
     /**
@@ -409,20 +411,13 @@ class CanvasState {
         let yTranslation = canvasState.yTranslation;
         let zoomLevel = canvasState.zoomLevel;
 
-        let xInitial = Math.floor((-xTranslation)/10)*10;
-        let xIncrement = 10;
-        let xLimit = Math.floor(((canvasState.canvas.width/(zoomLevel*1.5)) - xTranslation)/10)*10;
+        let xInitial = Math.floor((-xTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize;
+        let xIncrement = canvasState.gridSquareSize;
+        let xLimit = Math.floor(((canvasState.canvas.width/(zoomLevel*1.5)) - xTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize;
 
-        let yInitial = Math.floor((-yTranslation)/10)*10;
-        let yIncrement = 10;
-        let yLimit = Math.floor(((canvasState.canvas.height/zoomLevel) - yTranslation)/10)*10;
-
-        // // Code to just return all object IDs for testing
-        // Object.keys(canvasState.database.db).forEach(mapObjectID => {
-        //     let type = mapObjectID.slice(0, mapObjectID.indexOf("_"));
-        //     if (objectIDsOnScreen[type] == undefined) objectIDsOnScreen[type] = [];
-        //     objectIDsOnScreen[type].push(mapObjectID);
-        // });
+        let yInitial = Math.floor((-yTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize;
+        let yIncrement = canvasState.gridSquareSize;
+        let yLimit = Math.floor(((canvasState.canvas.height/zoomLevel) - yTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize;
 
         var objectIDsAdded = {};
 
@@ -432,7 +427,7 @@ class CanvasState {
             for (let y = yInitial; 
             y < yLimit; 
             y += yIncrement) {
-                let square = canvasState.mapObjectsGridCache[`${x}x${y}`];
+                let square = canvasState.mapObjectsGridCache.get(`${x}x${y}`);
                 if (square != undefined) {
                     for (let i = 0; i < square.length; i++) {
                         const mapObjectID = square[i];
@@ -766,12 +761,12 @@ class PathPart extends shared.PathPart {
 
     get xGridCoord() {
         let mapPoint = this.getPoint(canvasState.database);
-        return Math.floor(mapPoint.x/10) * 10;
+        return Math.floor(mapPoint.x/canvasState.gridSquareSize) * canvasState.gridSquareSize;
     } 
 
     get yGridCoord() {
         let mapPoint = this.getPoint(canvasState.database);
-        return Math.floor(mapPoint.y/10) * 10;
+        return Math.floor(mapPoint.y/canvasState.gridSquareSize) * canvasState.gridSquareSize;
     }
 }
 
@@ -818,11 +813,11 @@ class MapPoint extends shared.MapPoint {
     }
 
     get xGridCoord() {
-        return Math.floor(this.x/10) * 10;
+        return Math.floor(this.x/canvasState.gridSquareSize) * canvasState.gridSquareSize;
     } 
 
     get yGridCoord() {
-        return Math.floor(this.y/10) * 10;
+        return Math.floor(this.y/canvasState.gridSquareSize) * canvasState.gridSquareSize;
     }
 
     /**

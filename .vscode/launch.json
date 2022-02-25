@@ -37,17 +37,13 @@
         {
             "type": "pwa-node",
             "request": "launch",
-            "name": "Launch ThreadedConvertFromOSM.js",
+            "name": "Launch MapAreasToImage.js",
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}//src//does_not_work_or_rejected//threadedOSMconvert//ThreadedConvertFromOSM.js",
+            "program": "${workspaceFolder}//src//MapAreasToImage.js",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}//src//",
-            "runtimeArgs": [
-                "--max-old-space-size=16384",
-                "--expose-gc"
-            ]
+            "cwd": "${workspaceFolder}//src//"
         }
     ]
 }

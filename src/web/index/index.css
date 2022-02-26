@@ -31,6 +31,17 @@ html, body {
     background: #fff;
     right: 0px;
 }
+#results {
+    position: absolute;
+    padding: 15pt;
+    padding-bottom: 20pt;
+    right: 5pt;
+    margin: 5pt;
+    width: 500px;
+    max-width: 90vw;
+    max-height: 60vh;
+    overflow-y: scroll;
+}
 #loading-indicator {
     width: 35px;
 }

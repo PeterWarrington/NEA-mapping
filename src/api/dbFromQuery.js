@@ -20,16 +20,6 @@ var debug_searchFilterCount = 0;
         
     let startTime = Date.now();
 
-    // Filter everything with search term
-    if (req.query.searchTerm != undefined && req.query.searchTerm != false) {
-        let dbObjects = shared.database.db.values();
-        let dbObjectsLength = dbObjects.length;
-        for (let i = 0; i < dbObjectsLength; i++) {
-            const mapObject = dbObjects[i];
-            if (filterBySearchTerm(req, res, mapObject, shared)) databaseToReturn.addMapObject(mapObject);
-        }
-    }
-
     // Filter paths
     paths = [];
     rootDBpaths = shared.database.getMapObjectsOfType("PATH");

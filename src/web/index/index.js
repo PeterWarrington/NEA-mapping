@@ -3,6 +3,7 @@ debug_displayAreasDrawn = false;
 debug_drawAllHighwayLabelsTest = true;
 debug_drawHighwayLabels_smart = true;
 debug_testDB = false;
+globalPoint=null;
 
 class CanvasState {
     /** The {CanvasRenderingContext2D} that is used on the canvas */
@@ -44,6 +45,8 @@ class CanvasState {
     mapObjectsGridCache = new Map();
     /** Grid square size */
     gridSquareSize = 10;
+    /** Array of points to draw (e.g, search markers are added to this) */
+    pointsToDraw = []
 
     /** Stores details of areas drawn to screen */
     areasDrawn = [];
@@ -214,6 +217,9 @@ class CanvasState {
                 path.plotLine(this);
         }
         // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
+
+        // Draw points to draw
+        this.pointsToDraw.forEach(point => point.drawPoint());
 
         // Clear drawn labels
         this.labelsDrawn = [];
@@ -449,6 +455,15 @@ class CanvasState {
         return objectsOnScreen;
     }
 
+    translateToCoords(x,y,zoom=true) {
+        canvasState.xTranslation = -x + (75 / canvasState.zoomLevel);
+        canvasState.yTranslation = -y + (200 / canvasState.zoomLevel);
+
+        if (zoom) canvasState.zoomLevel = 0.7;
+        
+        canvasState.draw();
+    }
+
     /**
      * Initiates a search
      * @param {string} input search term
@@ -456,9 +471,89 @@ class CanvasState {
     search = (input) => {
         let http = new XMLHttpRequest();
         http.addEventListener("load", () => {
-            console.log(http.responseText);
+            if (http.responseText=="error") return;
+
+            try {
+                let responseArray = JSON.parse(http.responseText);
+
+                let minX;
+                let minY;
+                let maxX;
+                let maxY;
+
+                // Try and display first point returned
+                let points = [];
+                for (let i = 0; i < responseArray.length; i++) {
+                    const point = MapPoint.mapPointFromObject(responseArray[i].point);
+                    points.push(point);
+                    this.database.addMapObject(point);
+                    point.options = {
+                        pointDrawMethod: "text",
+                        pointText: `📌${i+1}`,
+                        pointFont: "sans-serif",
+                        pointFontWidth: 25,
+                        pointFillStyle: "#878787",
+                        pathDrawPointX: 3,
+                        pathDrawPointY: -6
+                    }
+
+                    if (minY == undefined || point.y < minY) minY = point.y;
+                    if (minX == undefined || point.x < minX) minX = point.x;
+                    if (maxY == undefined || point.y > maxY) maxY = point.y;
+                    if (maxX == undefined || point.x > maxX) maxX = point.x;
+
+                    if (!canvasState.pointsToDraw.includes(point));
+                        canvasState.pointsToDraw.push(point);
+                }
+
+                if (points.length > 0) {
+                    let maxDistance = Math.sqrt( Math.abs(maxX - minX)**2 + Math.abs(maxY - minY)**2 );
+                    canvasState.zoomLevel = 400/maxDistance;
+
+                    canvasState.translateToCoords(minX, minY, false);
+                    canvasState.updateMapData();
+                }
+
+                // Show results
+                let resultsEl = document.getElementById("results");
+                document.getElementById("results-title").innerText = `Search results for "${input}"`;
+
+                let resultsAccordion = document.getElementById("results-accordion");
+
+                resultsAccordion.innerHTML = "";
+
+                if (points.length == 0) resultsAccordion.innerHTML += "<strong class='text-muted'>No results found :-(</strong>";
+
+                for (let i = 0; i < points.length; i++) {
+                    const point = points[i];
+
+                    let expanded = "";
+                    let collapsed = "";
+                    if (i == 0) {
+                        expanded = "show";
+                    } else {
+                        collapsed = "collapsed";
+                    }
+
+                    if (resultsAccordion.innerHTML == null) resultsAccordion.innerHTML = "";
+                    resultsAccordion.innerHTML += `
+                        <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button ${collapsed}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${i}">
+                            📌${i+1}: ${point.label}
+                            </button>
+                        </h2>
+                        <div id="collapse${i}" class="accordion-collapse collapse ${expanded}">
+                            <div class="accordion-body">
+                            <a href="javascript:canvasState.translateToCoords(${point.x},${point.y})"><strong>Go to point.</strong></a>
+                            </div>
+                        </div>
+                        </div>`;
+                }
+                (new bootstrap.Toast(resultsEl)).show();
+            } catch (err) {console.log(err)}
         });
-        http.open("GET", `http://localhost/api/GetDBfromQuery?searchTerm="${input}"&noMapAreaFilter=true`);
+        http.open("GET", `http://localhost/api/PointSearch?searchTerm="${input}"`);
         http.send();
     }
 
@@ -780,7 +875,7 @@ class MapPoint extends shared.MapPoint {
     /** Options for the point when drawing to screen */
     options = {
         pointDrawMethod: "none",
-        pointText: "•",
+        pointText: "📍",
         pointFont: "sans-serif",
         pointFontWidth: 16,
         pointFillStyle: "#878787",
@@ -825,7 +920,7 @@ class MapPoint extends shared.MapPoint {
     /**
      * Function to draw the point to the screen
      */
-     drawPoint(canvasState=canvasState) {
+     drawPoint() {
         if (canvasState == null) {
             console.warn("Canvas state not defined, unable to draw point.");
             return;

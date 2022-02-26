@@ -223,6 +223,16 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
         this.metadata = metadata;
     }
 
+    get label() {
+        let label = `${this.ID}`;
+        if (this.metadata.wikipedia != undefined && this.metadata.wikipedia.indexOf("en:") == 0)
+            label = this.metadata.wikipedia.slice(this.metadata.wikipedia.indexOf("en:")+3);
+        else if (this.metadata.name != undefined) 
+            label = this.metadata.name;
+
+        return encodeHTML(label);
+    }
+
     /**
      * Converts a simple object representing a MapPoint (such as that returned from an API)
      * to a MapPoint.
@@ -481,4 +491,9 @@ shared.ComplexArea = class ComplexArea extends shared.MapDataObject {
         complexArea.metadata = object.metadata;
         return complexArea;
     }
+}
+
+// Used to sanitize labels, etc for adding to DOM https://stackoverflow.com/a/2794366
+function encodeHTML(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 }

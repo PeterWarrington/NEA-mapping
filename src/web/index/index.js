@@ -460,7 +460,7 @@ class CanvasState {
         canvasState.yTranslation = -y + (200 / canvasState.zoomLevel);
 
         if (zoom) canvasState.zoomLevel = 0.7;
-        
+
         canvasState.draw();
     }
 
@@ -481,12 +481,25 @@ class CanvasState {
                 let maxX;
                 let maxY;
 
-                // Try and display first point returned
+                // Display search reuslts
                 let points = [];
                 for (let i = 0; i < responseArray.length; i++) {
-                    const point = MapPoint.mapPointFromObject(responseArray[i].point);
+                    const mapObject = responseArray[i].mapObject;
+                    let point;
+
+                    if (mapObject.ID.indexOf("POINT") == 0)
+                        point = MapPoint.mapPointFromObject(mapObject);
+                    else if (mapObject.ID.indexOf("PATH") == 0) {
+                        let path = Path.pathFromObject(mapObject);
+                        path.midpoint = MapPoint.mapPointFromObject(mapObject.midpoint);
+                        point = path.midpoint;
+                        // Add metadata of path to point
+                        point.metadata.path = path.metadata;
+                    }
+
                     points.push(point);
                     this.database.addMapObject(point);
+                    
                     point.options = {
                         pointDrawMethod: "text",
                         pointText: `📌${i+1}`,
@@ -549,6 +562,8 @@ class CanvasState {
                             </div>
                         </div>
                         </div>`;
+
+                    if (point.metadata.path != undefined) point.metadata.path = undefined;
                 }
                 (new bootstrap.Toast(resultsEl)).show();
             } catch (err) {console.log(err)}

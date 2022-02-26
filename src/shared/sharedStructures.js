@@ -224,11 +224,14 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
     }
 
     get label() {
+        let metadata = this.metadata;
+        if (metadata.path != undefined && metadata.path.osm != undefined) metadata = metadata.path.osm;
+
         let label = `${this.ID}`;
-        if (this.metadata.wikipedia != undefined && this.metadata.wikipedia.indexOf("en:") == 0)
-            label = this.metadata.wikipedia.slice(this.metadata.wikipedia.indexOf("en:")+3);
-        else if (this.metadata.name != undefined) 
-            label = this.metadata.name;
+        if (metadata.wikipedia != undefined && metadata.wikipedia.indexOf("en:") == 0)
+            label = metadata.wikipedia.slice(metadata.wikipedia.indexOf("en:")+3);
+        else if (metadata.name != undefined) 
+            label = metadata.name;
 
         return encodeHTML(label);
     }

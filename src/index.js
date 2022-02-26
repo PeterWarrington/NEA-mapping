@@ -31,6 +31,7 @@ app.get("/api/GetDBfromQuery", (req, res) => require("./api/dbFromQuery.js").get
 
 app.use(express.static('web', options));
 app.use(express.static('shared', options));
+app.use(express.static('mapAreaImages', options));
 
 app.listen(port);
 

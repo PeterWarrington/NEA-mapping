@@ -8,11 +8,11 @@ debug_drawHighwayLabels_smart = true;
 debug_testDB = false;
 
 function displayedX(x) {
-    return (x * 1.5 * canvasState.zoomLevel) + canvasState.xTranslation;
+    return (x + canvasState.xTranslation) * 1.5 * canvasState.zoomLevel;
 }
 
 function displayedY(y) {
-    return (y * canvasState.zoomLevel) + canvasState.yTranslation;
+    return (y + canvasState.yTranslation) * canvasState.zoomLevel;
 }
 
 /**
@@ -21,7 +21,7 @@ function displayedY(y) {
  */
 class CanvasState {
     ctx
-    canvas 
+    canvas
     database
     zoomLevel = 1
     xTranslation = 0
@@ -521,39 +521,34 @@ let squareLength = 1000;
 canvasState.canvas = canvasLib.createCanvas(squareLength, squareLength);
 canvasState.ctx = canvasState.canvas.getContext('2d');
 
-let zoomLevels = [0.05, 0.1, 0.2, 0.5, 1, 2, 3];
+// let zoomLevels = [0.05, 0.1, 0.2, 0.5, 1, 2, 3];
+
+let zoomLevels = [0.5];
 
 for (let i = 0; i < zoomLevels.length; i++) {
     canvasState.zoomLevel = zoomLevels[i];
 
     // Find maximum and minimum coords in database to set canvas bounds
-    var minYdisplayed;
-    var minXdisplayed;
-    var maxYdisplayed;
-    var maxXdisplayed;
     var minY;
     var minX;
     var maxY;
     var maxX;
 
     canvasState.database.getMapObjectsOfType("POINT").forEach(point => {
-        let x = displayedX(point.x);
-        let y = displayedY(point.y);
-    
-        if (minY == undefined || y < minYdisplayed) {minYdisplayed = y; minY = point.y}
-        if (minX == undefined || x < minXdisplayed) {minXdisplayed = x; minX = point.x}
-        if (maxY == undefined || y > maxYdisplayed) {maxYdisplayed = y; maxY = point.y}
-        if (maxX == undefined || x > maxXdisplayed) {maxXdisplayed = x; maxX = point.x}
+        if (minY == undefined || point.y < minY) {minY = point.y}
+        if (minX == undefined || point.x < minX) {minX = point.x}
+        if (maxY == undefined || point.y > maxY) {maxY = point.y}
+        if (maxX == undefined || point.x > maxX) {maxX = point.x}
     });
 
-    canvasState.yTranslation = -minYdisplayed;
+    canvasState.yTranslation = -(minY * canvasState.zoomLevel);
 
     var currentSquareY = minY;
     
-    while (-canvasState.yTranslation < maxYdisplayed) {
+    while (-canvasState.yTranslation < maxY * canvasState.zoomLevel) {
         var currentSquareX = minX;
-        canvasState.xTranslation = -minXdisplayed;
-        while (-canvasState.xTranslation < maxXdisplayed) {
+        canvasState.xTranslation = -(minX * 1.5 * canvasState.zoomLevel);
+        while (-canvasState.xTranslation < maxX * canvasState.zoomLevel * 1.5) {
             // Draw objects
             canvasState.ctx.clearRect(0, 0, squareLength, squareLength);
             canvasState.database.getMapObjectsOfType("AREA").forEach(area => area.draw());
@@ -573,10 +568,10 @@ for (let i = 0; i < zoomLevels.length; i++) {
             fs.writeFileSync(fileName, buffer);
             console.log(`Canvas has been written to "${fileName}".`);
     
-            currentSquareX += (squareLength * canvasState.zoomLevel);
-            canvasState.xTranslation -=  squareLength;
+            currentSquareX += squareLength * 1.5 * canvasState.zoomLevel;
+            canvasState.xTranslation -= squareLength;
         }
-        currentSquareY += (squareLength * canvasState.zoomLevel);
+        currentSquareY += squareLength * canvasState.zoomLevel;
         canvasState.yTranslation -= squareLength;
     }
 }

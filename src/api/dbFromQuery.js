@@ -20,6 +20,15 @@ var debug_searchFilterCount = 0;
         
     let startTime = Date.now();
 
+    var objectTypes;
+    // Filter by object types if provided
+    if (req.query.objectTypes != undefined) {
+        try {
+            let objectTypesTemp = JSON.parse(req.query.objectTypes);
+            if (objectTypesTemp instanceof Array) objectTypes = objectTypesTemp;
+        } catch {}
+    }
+
     // Filter everything with search term
     if (req.query.searchTerm != undefined && req.query.searchTerm != false) {
         let dbObjects = shared.database.db.values();
@@ -31,40 +40,44 @@ var debug_searchFilterCount = 0;
     }
 
     // Filter paths
-    paths = [];
-    rootDBpaths = shared.database.getMapObjectsOfType("PATH");
-    for (let i = 0; i < rootDBpaths.length; i++) {
-        const path = rootDBpaths[i];
-        var meetsCriteria = true;
+    if (objectTypes == undefined || objectTypes.includes("PATH")) {
+        paths = [];
+        rootDBpaths = shared.database.getMapObjectsOfType("PATH");
+        for (let i = 0; i < rootDBpaths.length; i++) {
+            const path = rootDBpaths[i];
+            var meetsCriteria = true;
 
-        // These filter function calls return undefined if unsuccesful, where bool && undefined == undefined
-        // Filter by pathTypes
-        meetsCriteria = meetsCriteria && filterByPathType(req, res, path, shared);
+            // These filter function calls return undefined if unsuccesful, where bool && undefined == undefined
+            // Filter by pathTypes
+            meetsCriteria = meetsCriteria && filterByPathType(req, res, path, shared);
 
-        if (meetsCriteria) {
-            paths.push(path)
-        } else if (meetsCriteria == undefined) return;
+            if (meetsCriteria) {
+                paths.push(path)
+            } else if (meetsCriteria == undefined) return;
+        }
+
+        if (shared.debug_on) {
+            logger.log(`PathType filtered database has ${debug_pathTypeFilterCount} paths.`);
+            logger.log(`PathType and search filtered database has ${debug_searchFilterCount} paths.`)
+        }
+
+        if (paths.length == rootDBpaths.length)
+            // We are returning all the contents of the DB, no need to iterate through filtered paths
+            databaseToReturn = shared.database;
+        else
+            paths.forEach(path => {
+                path.copyPathContentsToDB(shared.database, databaseToReturn);
+                databaseToReturn.addMapObject(path);
+            });
     }
-
-    if (shared.debug_on) {
-        logger.log(`PathType filtered database has ${debug_pathTypeFilterCount} paths.`);
-        logger.log(`PathType and search filtered database has ${debug_searchFilterCount} paths.`)
-    }
-
-    if (paths.length == rootDBpaths.length)
-        // We are returning all the contents of the DB, no need to iterate through filtered paths
-        databaseToReturn = shared.database;
-    else
-        paths.forEach(path => {
-            path.copyPathContentsToDB(shared.database, databaseToReturn);
-            databaseToReturn.addMapObject(path);
-        });
     
+    if (objectTypes == undefined || objectTypes.includes("AREA"))
     shared.database.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]).forEach(area => {
         databaseToReturn.addMapObject(area);
         area.mapPointIDs.forEach(mapPointID => databaseToReturn.addMapObject(shared.database.db.get(mapPointID)));
     });
 
+    if (objectTypes == undefined || objectTypes.includes("COMPLEX-AREA"))
     shared.database.getMapObjectsOfType("COMPLEX-AREA").forEach(area => {
         databaseToReturn.addMapObject(area);
     });
@@ -73,6 +86,9 @@ var debug_searchFilterCount = 0;
         logger.log(`Unfiltered database has ${databaseToReturn.getMapObjectsOfType("AREA").length} areas.`);
 
     databaseToReturn = filterByMapArea(req, res, databaseToReturn);
+
+    if (objectTypes != undefined && objectTypes.includes("TILE")) 
+        getTileDetails(databaseToReturn);
 
     if (shared.debug_on)
         logger.log(`Filtered database has ${databaseToReturn.getMapObjectsOfType("AREA").length} areas.`);
@@ -191,24 +207,24 @@ var debug_searchFilterCount = 0;
 
      // Find points in map area
      var filteredDB = new shared.MapDataObjectDB();
-     var rootDBpoints = db.getMapObjectsOfType("POINT");
+     var rootDBpointsAndTiles = db.getMapObjectsOfType(["POINT", "TILE"]);
 
-     for (let i = 0; i < rootDBpoints.length; i++) {
-        const point = rootDBpoints[i];
+     for (let i = 0; i < rootDBpointsAndTiles.length; i++) {
+        const mapObject = rootDBpointsAndTiles[i];
 
         var outsideOfExcludeArea = true;
         for (let a = 0; a < excludeAreas.length; a++) {
             const excludeArea = excludeAreas[a];
             outsideOfExcludeArea = outsideOfExcludeArea && (excludeArea.pathTypeCount < pathTypeCount ||
-                (point.x <= excludeArea.x || point.x >= excludeArea.x + excludeArea.width ||
-                point.y <= excludeArea.y || point.y >= excludeArea.y + excludeArea.height)
+                (mapObject.x <= excludeArea.x || mapObject.x >= excludeArea.x + excludeArea.width ||
+                    mapObject.y <= excludeArea.y || mapObject.y >= excludeArea.y + excludeArea.height)
             );
             if (!outsideOfExcludeArea) break;
         }
         
-        if (outsideOfExcludeArea && point.y >= y && point.y <= y + height
-            && point.x >= x && point.x <= x + width)
-            filteredDB.addMapObject(point);
+        if (outsideOfExcludeArea && mapObject.y >= y && mapObject.y <= y + height
+            && mapObject.x >= x && mapObject.x <= x + width)
+            filteredDB.addMapObject(mapObject);
      }
 
      // Filter path parts to those that only contain filtered points
@@ -291,6 +307,19 @@ var debug_searchFilterCount = 0;
      }
 
      return filteredDB;
+ }
+
+ function getTileDetails(db) {
+    fileNames = fs.readdirSync("./mapAreaImages/");
+    fileNames.forEach(fileName => {
+        try {
+            let x = Number(fileName.slice(0, fileName.indexOf("x")));
+            let y = Number(fileName.slice(fileName.indexOf("x")+1, fileName.indexOf("_")));
+            let zoomLevel = Number(fileName.slice(fileName.indexOf("_")+1, fileName.indexOf("x",fileName.indexOf("_"))));
+            let length = 1000;
+            db.addMapObject(new shared.Tile(x,y,length,length,zoomLevel));
+        } catch {}
+    });
  }
 
  /**

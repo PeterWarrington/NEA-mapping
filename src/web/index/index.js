@@ -44,6 +44,8 @@ class CanvasState {
     mapObjectsGridCache = new Map();
     /** Grid square size */
     gridSquareSize = 10;
+    /** Tile image elements */
+    imageElements = []
 
     /** Stores details of areas drawn to screen */
     areasDrawn = [];
@@ -150,9 +152,9 @@ class CanvasState {
     }
 
     /**
-     * Calls functions to draw path to screen
+     * Calls functions to draw map contents to screen, without using map tiles.
      */
-    draw(drawBlankCanvasOnly=false) {
+    draw(drawBlankCanvasOnly=false, tileMode=true) {
         // Update canvas width
         this.updateCanvasWidth();
     
@@ -170,50 +172,72 @@ class CanvasState {
         // Nothing to draw
         if (Object.keys(objectsOnScreen).length == 0) return;
 
-        let topLayerAreas = [];
-        let areas = objectsOnScreen["AREA"];
-        
-        // Draw lower layer areas, adding lower layer areas to topLayerAreas to draw later
-        if (areas != undefined)
-        for (let i = 0; i < areas.length; i++) {
-            const area = areas[i];
-            if (area.metadata.areaType["first_level_descriptor"] == "land") // TODO: Create "layer" property and read from this instead
-                area.draw(this);
-            else
-                topLayerAreas.push(area);
-        }
-
-        for (let i = 0; i < topLayerAreas.length; i++) {
-            const area = topLayerAreas[i];
-            area.draw(this);
-        }
-
-        let complexAreas = objectsOnScreen["COMPLEX-AREA"];
-
-        if (complexAreas != undefined)
-        for (let i = 0; i < complexAreas.length; i++) {
-            const complexArea = complexAreas[i];
-            complexArea.draw();
-        }
-        
-        if (this.testMapPoints != null) {
-            // Halt drawing, call test draw function instead, typical drawing will not be executed
-            this.#testDraw();
-            return;
-        }
-
         let paths = objectsOnScreen["PATH"];
-        if (paths != undefined)
-        for (let i = 0; i < paths.length; i++) {
-            let path = paths[i];
-            let acceptedPathTypes = this.getPathTypes();
 
-            // Only plot line if is one of accepted path types for zoom level
-            if (acceptedPathTypes.includes(path.metadata.pathType["second_level_descriptor"])
-            || acceptedPathTypes.includes(path.metadata.pathType["first_level_descriptor"]))
-                path.plotLine(this);
+        if (true) {
+            let tiles = this.database.getMapObjectsOfType("TILE");
+            if (tiles != undefined)
+            tiles.forEach(tile => {
+                if (tile.zoomLevel == 0.5) {
+                    // Get tile from server
+                    tile.element = new Image();
+                    tile.element.src = `/${tile.fileName}`;
+                }
+            })
+            tiles.forEach(tile => {
+                let scaleFactor = canvasState.zoomLevel/tile.zoomLevel;
+                if (tile.element instanceof HTMLImageElement)
+                canvasState.ctx.drawImage(tile.element, (tile.x + (canvasState.xTranslation))*scaleFactor, (tile.y + canvasState.yTranslation)*scaleFactor, tile.lengthX*scaleFactor, tile.lengthY*scaleFactor);
+            })
         }
-        // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
+
+        if (true) {
+            let topLayerAreas = [];
+            let areas = this.database.getMapObjectsOfType("AREA");
+            
+            // Draw lower layer areas, adding lower layer areas to topLayerAreas to draw later
+            if (areas != undefined)
+            for (let i = 0; i < areas.length; i++) {
+                const area = areas[i];
+                if (area.metadata.areaType["first_level_descriptor"] == "land") // TODO: Create "layer" property and read from this instead
+                    area.draw(this);
+                else
+                    topLayerAreas.push(area);
+            }
+
+            for (let i = 0; i < topLayerAreas.length; i++) {
+                const area = topLayerAreas[i];
+                area.draw(this);
+            }
+
+            let complexAreas = this.database.getMapObjectsOfType("COMPLEX-AREA");
+
+            if (complexAreas != undefined)
+            for (let i = 0; i < complexAreas.length; i++) {
+                const complexArea = complexAreas[i];
+                complexArea.draw();
+            }
+            
+            if (this.testMapPoints != null) {
+                // Halt drawing, call test draw function instead, typical drawing will not be executed
+                this.#testDraw();
+                return;
+            }
+
+            if (paths != undefined)
+            for (let i = 0; i < paths.length; i++) {
+                let path = paths[i];
+                let acceptedPathTypes = this.getPathTypes();
+
+                // Only plot line if is one of accepted path types for zoom level
+                if (acceptedPathTypes.includes(path.metadata.pathType["second_level_descriptor"])
+                || acceptedPathTypes.includes(path.metadata.pathType["first_level_descriptor"]))
+                    path.plotLine(this);
+            }
+            // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
+        }
+
+        
 
         // Clear drawn labels
         this.labelsDrawn = [];
@@ -291,7 +315,7 @@ class CanvasState {
             let wholeDBurl = `http://localhost/api/GetDBfromFile`;
             let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
             let testURLlimitedArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
-            let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
+            let normalURL = `http://localhost/api/GetDBfromQuery?objectTypes=["PATH","PART","POINT","TILE"]&pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
             
             let currentURL;
             if (debug_testDB) currentURL = testingDBurl;
@@ -401,6 +425,12 @@ class CanvasState {
                     this.cacheMapObjectToGrid(complexArea, point.xGridCoord, point.yGridCoord);
                 })
             }
+        }
+
+        let tiles = this.database.getMapObjectsOfType("TILE");
+        for (let i = 0; i < tiles.length; i++) {
+            const tile = tiles[i];
+            this.cacheMapObjectToGrid(tile, getGridCoord(tile.x), getGridCoord(tile.y));
         }
     }
 
@@ -717,8 +747,8 @@ class Path extends shared.Path {
             canvasState.ctx.setTransform(1, 0, 0, 1, 0, 0);
 
             // Add label to labels drawn
-            if (!canvasState.labelsDrawn.includes(newLabel))
-                canvasState.labelsDrawn.push(newLabel);
+            // if (!canvasState.labelsDrawn.includes(newLabel))
+            //     canvasState.labelsDrawn.push(newLabel);
         }
     }
 }
@@ -763,12 +793,12 @@ class PathPart extends shared.PathPart {
 
     get xGridCoord() {
         let mapPoint = this.getPoint(canvasState.database);
-        return Math.floor(mapPoint.x/canvasState.gridSquareSize) * canvasState.gridSquareSize;
+        return mapPoint.xGridCoord;
     } 
 
     get yGridCoord() {
         let mapPoint = this.getPoint(canvasState.database);
-        return Math.floor(mapPoint.y/canvasState.gridSquareSize) * canvasState.gridSquareSize;
+        return mapPoint.yGridCoord;
     }
 }
 
@@ -815,11 +845,11 @@ class MapPoint extends shared.MapPoint {
     }
 
     get xGridCoord() {
-        return Math.floor(this.x/canvasState.gridSquareSize) * canvasState.gridSquareSize;
+        return getGridCoord(this.x);
     } 
 
     get yGridCoord() {
-        return Math.floor(this.y/canvasState.gridSquareSize) * canvasState.gridSquareSize;
+        return getGridCoord(this.y);
     }
 
     /**
@@ -1122,6 +1152,10 @@ function debug_displayAreasDrawnFunc() {
 function areCoordsOnScreen(x, y) {
     return x > 0 && x < canvasState.canvas.width
             && y > 0 && y < canvasState.canvas.height;
+}
+
+function getGridCoord(x) {
+    return Math.floor(x/canvasState.gridSquareSize) * canvasState.gridSquareSize
 }
 
 // Once the page has fully loaded, call MapTest

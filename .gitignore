@@ -9,3 +9,4 @@ src/report*
 src/db.json
 .DS_Store
 old/
+src/mapAreaImages

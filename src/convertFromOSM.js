@@ -149,9 +149,11 @@ multipolygons.forEach(multipolygon => {
 let complexAreas = mapDatabase.getMapObjectsOfType("COMPLEX-AREA");
 
 // Extract nodes for each way and creating paths
-console.log("Final stage - Generating DB...");
+console.log("Generating DB...");
 
 var wLength = filteredWays.length;
+var refsAddedToDb = [];
+
 // var wLength = 100;
 for (let w = 0; w < wLength; w++) {
   const way = filteredWays[w];
@@ -172,18 +174,11 @@ for (let w = 0; w < wLength; w++) {
   for (let r = 0; r < nodeRefsOfWay.length; r++) {
     const ref = nodeRefsOfWay[r];
     let node = nodes[ref];
-    let mapPoint = convertNodeToMapPoint(node);
-
-    // Extract all metadata of node
-    if (node.elements != undefined)
-      for (let e = 0; e < node.elements.length; e++) {
-        const element = node.elements[e];
-        if (element.name == "tag") 
-          mapPoint.metadata[element.attributes.k] = element.attributes.v;
-      }
+    let mapPoint = addNodeToDb(node, mapDatabase);
 
     // Add map point to array
     mapPointsOfWay.push(mapPoint);
+    refsAddedToDb.push(ref);
   }
 
   if (wayType == "highway" || wayType == "water_way") {
@@ -249,14 +244,28 @@ for (let i = 0; i < complexAreasLength; i++) {
   process.stdout.write(`${Math.round(((i+1)/complexAreasLength)*10000)/100}% (${i+1}/${complexAreasLength}) of complex areas processed.`);
 }
 
-console.log("\nComplex areas processed.")
+console.log("\nComplex areas processed.");
+
+// Add all nodes to db
+console.log("Adding all nodes to db...");
+let nodesFullArray = Object.values(nodes);
+let nodesLength = nodesFullArray.length;
+for (let i = 0; i < nodesLength; i++) {
+  const node = nodesFullArray[i];
+
+  addNodeToDb(node, mapDatabase);
+  
+  process.stdout.cursorTo(0);
+  process.stdout.write(`${Math.round(((i+1)/nodesLength)*10000)/100}% (${i+1}/${nodesLength}) of nodes added to db.`);
+}
+console.log("\nAdded all nodes to db...");
 
 console.log("Database generated. Writing to file...");
 
 // Write database to file
 var dbFilename = `db-${Date.now()}.json`;
 try {
-  let dbKeys = mapDatabase.db.keys();
+  let dbKeys = Array.from(mapDatabase.db.keys());
   let writeStream = fs.createWriteStream(dbFilename);
 
   writeStream.write(`{"db":{`);
@@ -345,4 +354,20 @@ function extractMetadata(way) {
   else if (way.attributes.ref != undefined) metadata.id = way.attributes.ref;
 
   return metadata;
+}
+
+function addNodeToDb(node, mapDatabase) {
+  let mapPoint = convertNodeToMapPoint(node);
+
+  // Extract all metadata of node
+  if (node.elements != undefined)
+    for (let e = 0; e < node.elements.length; e++) {
+      const element = node.elements[e];
+      if (element.name == "tag") 
+        mapPoint.metadata[element.attributes.k] = element.attributes.v;
+    }
+  
+  mapDatabase.addMapObject(mapPoint);
+
+  return mapPoint;
 }

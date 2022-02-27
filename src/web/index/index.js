@@ -551,23 +551,16 @@ class CanvasState {
                 for (let i = 0; i < points.length; i++) {
                     const point = points[i];
 
-                    let expanded = "";
-                    let collapsed = "";
-                    if (i == 0) {
-                        expanded = "show";
-                    } else {
-                        collapsed = "collapsed";
-                    }
 
                     if (resultsAccordion.innerHTML == null) resultsAccordion.innerHTML = "";
                     resultsAccordion.innerHTML += `
                         <div class="accordion-item">
                         <h2 class="accordion-header">
-                            <button class="accordion-button ${collapsed}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${i}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${i}">
                             📌${i+1}: ${point.label} <span class="fw-lighter">&nbsp;(${point.locationType})</span>
                             </button>
                         </h2>
-                        <div id="collapse${i}" class="accordion-collapse collapse ${expanded}">
+                        <div id="collapse${i}" class="accordion-collapse collapse">
                             <div class="accordion-body">
                             <a href="javascript:canvasState.translateToCoords(${point.x},${point.y})">
                             <strong>Go to point.</strong></a>

@@ -47,6 +47,12 @@ class CanvasState {
     gridSquareSize = 10;
     /** Array of points to draw (e.g, search markers are added to this) */
     pointsToDraw = []
+    /** Stores Events for pinch gestures */
+    pointEvents = []
+    /** Store previous distance between digits */
+    lastPinchDistance = 0;
+    /** Indicates wether a pinch zoom is in progress */
+    pinchZoomInProgress = false;
 
     /** Stores details of areas drawn to screen */
     areasDrawn = [];
@@ -83,11 +89,12 @@ class CanvasState {
         this.canvas.onmouseup = () => this.mapInteractionEnd();
 
         this.canvas.ontouchmove = (event) => {
-            this.mapDrag(event.targetTouches[0].pageX, event.targetTouches[0].pageY);
+            if (event.targetTouches.length == 1 && !this.pinchZoomInProgress)
+                this.mapDrag(event.targetTouches[0].pageX, event.targetTouches[0].pageY);
         }
 
         this.canvas.onmousemove = (event) => {
-            if (this.canvasMouseDown)
+            if (this.canvasMouseDown && !this.pinchZoomInProgress)
                 this.mapDrag(event.pageX, event.pageY);
         }
 
@@ -97,6 +104,43 @@ class CanvasState {
 
         this.canvas.onmouseleave = (event) => {
             this.canvas.style.cursor = "default";
+        }
+
+        // Code to support pinch zoom based on https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events/Pinch_zoom_gestures by Mozilla Contributors, licensed under CC-BY-SA 2.5
+        this.canvas.onpointerdown = (event) => {
+            canvasState.pointEvents.push(event)
+        }
+
+        this.canvas.onpointermove = (event) => {
+            // Find this event in the cache and update its record with this event
+            for (var i = 0; i < canvasState.pointEvents.length; i++) {
+                if (event.pointerId == canvasState.pointEvents[i].pointerId) {
+                    canvasState.pointEvents[i] = event;
+                    break;
+                }
+            }
+
+            // If 2 fingers zooming
+            if (canvasState.pointEvents.length == 2) {
+                canvasState.pinchZoomInProgress = true;
+                var curDiff = Math.abs(canvasState.pointEvents[0].clientX - canvasState.pointEvents[1].clientX);
+
+                if (this.lastPinchDistance != 0) {
+                    canvasState.zoomLevel *= (curDiff/canvasState.lastPinchDistance);
+                    console.log((curDiff/canvasState.lastPinchDistance));
+                    canvasState.draw();
+                }
+
+                canvasState.lastPinchDistance = curDiff;
+            }
+        }
+
+        this.canvas.onpointerup = (eventA) => {
+            canvasState.pointEvents = canvasState.pointEvents.filter(eventB => eventA.pointerId != eventB.pointerId);
+            if (canvasState.pointEvents.length == 0) {
+                canvasState.updateMapData();
+                canvasState.pinchZoomInProgress = false;
+            };
         }
 
         // Redraw on window resize to make sure canvas is right size
@@ -293,11 +337,11 @@ class CanvasState {
 
         if (forceUpdate || !hasBeenDrawn) {
             // Make request
-            let testingDBurl = `http://localhost/api/GetTestDB`;
-            let wholeDBurl = `http://localhost/api/GetDBfromFile`;
-            let testURLnoMapArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
-            let testURLlimitedArea = `http://localhost/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
-            let normalURL = `http://localhost/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
+            let testingDBurl = `/api/GetTestDB`;
+            let wholeDBurl = `/api/GetDBfromFile`;
+            let testURLnoMapArea = `/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
+            let testURLlimitedArea = `/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
+            let normalURL = `/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
             
             let currentURL;
             if (debug_testDB) currentURL = testingDBurl;
@@ -579,7 +623,7 @@ class CanvasState {
                 (new bootstrap.Toast(resultsEl)).show();
             } catch (err) {console.log(err)}
         });
-        http.open("GET", `http://localhost/api/PointSearch?searchTerm="${input}"`);
+        http.open("GET", `/api/PointSearch?searchTerm="${input}"`);
         http.send();
     }
 

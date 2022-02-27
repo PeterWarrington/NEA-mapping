@@ -232,6 +232,8 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
             label = metadata.wikipedia.slice(metadata.wikipedia.indexOf("en:")+3);
         else if (metadata.name != undefined) 
             label = metadata.name;
+        else if (metadata["addr:street"] != undefined && metadata["addr:housenumber"] != undefined)
+            label = `${metadata["addr:housenumber"]} ${metadata["addr:street"]}`;
         else if (metadata.prow_ref != undefined)
             label = metadata.prow_ref;
         else if (metadata.ref != undefined)
@@ -267,10 +269,20 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
             type = `Rail station`;
         else if (metadata.tourism != undefined)
             type = `${metadata.tourism}`;
+        else if (metadata.leisure != undefined)
+            type = `${metadata.leisure}`;
+        else if (metadata.place != undefined)
+            type = `${metadata.place}`;
+        else if (metadata.shop != undefined)
+            type = `${metadata.shop}`;
+        else if (metadata.amenity != undefined)
+            type = `${metadata.amenity}`;
         else if (metadata.public_transport != undefined)
             type = `Transport ${metadata.public_transport}`;
         else if (metadata.barrier)
             type = `${metadata.barrier}`;
+        else if (metadata["addr:housenumber"] != undefined)
+            type = `House`
         
         return (type[0].toUpperCase() + type.slice(1)).replaceAll("_", " ");
     }

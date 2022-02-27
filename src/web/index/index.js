@@ -576,7 +576,7 @@ class CanvasState {
 
                 if (points.length > 0) {
                     let maxDistance = Math.sqrt( Math.abs(maxX - minX)**2 + Math.abs(maxY - minY)**2 );
-                    canvasState.zoomLevel = 400/maxDistance;
+                    canvasState.zoomLevel = (400/maxDistance < 10) ? 400/maxDistance: 10;
 
                     canvasState.translateToCoords(minX, minY, false);
                     canvasState.updateMapData();
@@ -601,7 +601,7 @@ class CanvasState {
                         <div class="accordion-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${i}">
-                            📌${i+1}: ${point.label} <span class="fw-lighter">&nbsp;(${point.locationType})</span>
+                            <div>📌${i+1}: ${point.label} <span class="fw-lighter">&nbsp;(${point.locationType})</span></div>
                             </button>
                         </h2>
                         <div id="collapse${i}" class="accordion-collapse collapse">

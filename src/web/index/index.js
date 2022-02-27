@@ -42,9 +42,7 @@ class CanvasState {
     /** Stores the value of the last number of path types drawn */
     pathTypeCountLast = 0;
     /** Maps objects onto a grid made of 10x10 squares so can be queried more quickly */
-    mapObjectsGridCache = new Map();
-    /** Grid square size */
-    gridSquareSize = 10;
+    mapObjectsGridCache;
     /** Array of points to draw (e.g, search markers are added to this) */
     pointsToDraw = []
     /** Stores Events for pinch gestures */
@@ -145,6 +143,9 @@ class CanvasState {
 
         // Redraw on window resize to make sure canvas is right size
         window.addEventListener('resize', () => this.draw());
+
+        // Set up map grid cache
+        this.mapObjectsGridCache = new shared.MapGridCache(this.database)
     }
 
     mapInteractionEnd() {
@@ -369,7 +370,7 @@ class CanvasState {
 
         canvasState.database.mergeWithOtherDB(database);
 
-        this.cacheDataToGrid();
+        this.mapObjectsGridCache.cacheDataToGrid();
 
         if(shared.debug_on) 
             console.log(`Computed database currently has ${canvasState.database.getMapObjectsOfType("PATH").length} paths.`);
@@ -390,70 +391,6 @@ class CanvasState {
         document.getElementById("loading-indicator-container").style.display = "none";
     }
 
-    cacheMapObjectToGrid(mapObject, xGridCoord=mapObject.xGridCoord, yGridCoord=mapObject.yGridCoord) {
-        let square = this.mapObjectsGridCache.get(`${xGridCoord}x${yGridCoord}`);
-
-        if (square == undefined)
-            square = [];
-
-        if (square.find(mapObjId => mapObjId == mapObject.ID) == undefined)
-            square.push(mapObject.ID);
-        
-        this.mapObjectsGridCache.set(`${xGridCoord}x${yGridCoord}`, square);
-    }
-
-    /**
-     * Caches data to a hashmap grid, so that the queries for
-     * which points are on screen can be conducted faster.
-     * (JS Objects are typically implemented as hashmaps, but
-     * aren't explicitly referred to as such.)
-     */
-    cacheDataToGrid() {
-        this.mapObjectsGridCache.clear();
-        
-        let points = this.database.getMapObjectsOfType("POINT");
-        for (let i = 0; i < points.length; i++) {
-            const point = points[i];
-            this.cacheMapObjectToGrid(point);
-        }
-
-        let pathParts = this.database.getMapObjectsOfType("PART");
-        for (let i = 0; i < pathParts.length; i++) {
-            const part = pathParts[i];
-            this.cacheMapObjectToGrid(part);
-        }
-
-        let paths = this.database.getMapObjectsOfType("PATH");
-        for (let i = 0; i < paths.length; i++) {
-            const path = paths[i];
-            path.getAllPointsOnPath(canvasState.database).forEach(point => {
-                this.cacheMapObjectToGrid(path, point.xGridCoord, point.yGridCoord);
-            });
-        }
-
-        let areas = this.database.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]);
-        for (let i = 0; i < areas.length; i++) {
-            const area = areas[i];
-            area.getAllPoints(canvasState.database).forEach(point => {
-                this.cacheMapObjectToGrid(area, point.xGridCoord, point.yGridCoord);
-            })
-        }
-
-        let complexAreas = this.database.getMapObjectsOfType("COMPLEX-AREA");
-        for (let i = 0; i < complexAreas.length; i++) {
-            const complexArea = complexAreas[i];
-            let areas = complexArea.innerAreaIDs.map(id => this.database.db.get(id));
-            areas.push(this.database.db.get(complexArea.outerAreaID));
-
-            for (let j = 0; j < areas.length; j++) {
-                const area = areas[j];
-                area.getAllPoints(canvasState.database).forEach(point => {
-                    this.cacheMapObjectToGrid(complexArea, point.xGridCoord, point.yGridCoord);
-                })
-            }
-        }
-    }
-
     /**
      * Returns those map objects on screen as per mapObjectsGridCache.
      */
@@ -463,13 +400,15 @@ class CanvasState {
         let yTranslation = canvasState.yTranslation;
         let zoomLevel = canvasState.zoomLevel;
 
-        let xInitial = Math.floor((-xTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize - 2*canvasState.gridSquareSize;
-        let xIncrement = canvasState.gridSquareSize;
-        let xLimit = Math.floor(((canvasState.canvas.width/(zoomLevel*1.5)) - xTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize + 2*canvasState.gridSquareSize;
+        let gridSquareSize = canvasState.mapObjectsGridCache.gridSquareSize;
 
-        let yInitial = Math.floor((-yTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize - 2*canvasState.gridSquareSize;
-        let yIncrement = canvasState.gridSquareSize;
-        let yLimit = Math.floor(((canvasState.canvas.height/zoomLevel) - yTranslation)/canvasState.gridSquareSize)*canvasState.gridSquareSize + 2*canvasState.gridSquareSize;
+        let xInitial = Math.floor((-xTranslation)/gridSquareSize)*gridSquareSize - 2*gridSquareSize;
+        let xIncrement = gridSquareSize;
+        let xLimit = Math.floor(((canvasState.canvas.width/(zoomLevel*1.5)) - xTranslation)/gridSquareSize)*gridSquareSize + 2*gridSquareSize;
+
+        let yInitial = Math.floor((-yTranslation)/gridSquareSize)*gridSquareSize - 2*gridSquareSize;
+        let yIncrement = gridSquareSize;
+        let yLimit = Math.floor(((canvasState.canvas.height/zoomLevel) - yTranslation)/gridSquareSize)*gridSquareSize + 2*gridSquareSize;
 
         var objectIDsAdded = new Map();
 
@@ -925,16 +864,6 @@ class PathPart extends shared.PathPart {
 
         return possiblePart;
     }
-
-    get xGridCoord() {
-        let mapPoint = this.getPoint(canvasState.database);
-        return Math.floor(mapPoint.x/canvasState.gridSquareSize) * canvasState.gridSquareSize;
-    } 
-
-    get yGridCoord() {
-        let mapPoint = this.getPoint(canvasState.database);
-        return Math.floor(mapPoint.y/canvasState.gridSquareSize) * canvasState.gridSquareSize;
-    }
 }
 
 shared.PathPart = PathPart;
@@ -977,14 +906,6 @@ class MapPoint extends shared.MapPoint {
     /** Gets the y position relative to the canvas */
     get displayedY() {
         return (this.y + canvasState.yTranslation) * canvasState.zoomLevel;
-    }
-
-    get xGridCoord() {
-        return Math.floor(this.x/canvasState.gridSquareSize) * canvasState.gridSquareSize;
-    } 
-
-    get yGridCoord() {
-        return Math.floor(this.y/canvasState.gridSquareSize) * canvasState.gridSquareSize;
     }
 
     /**

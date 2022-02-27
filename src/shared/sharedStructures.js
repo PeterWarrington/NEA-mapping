@@ -195,6 +195,95 @@ shared.MapDataObjectDB = class MapDataObjectDB {
     }
 }
 
+shared.MapGridCache = class MapGridCache {
+    /** Maps objects onto a grid made of 10x10 squares so can be queried more quickly */
+    mapObjectsGridCache = new Map();
+    /** Grid square size */
+    gridSquareSize = 10;
+    /** Pointer to database from which to cache map data */
+    database
+
+    constructor(database) {
+        this.database = database;
+    }
+
+    get(squareRef) {
+        return this.mapObjectsGridCache.get(squareRef);
+    }
+
+    xGridCoord(mapObj) {
+        return Math.floor(mapObj.x/this.gridSquareSize) * this.gridSquareSize;
+    } 
+
+    yGridCoord(mapObj) {
+        return Math.floor(mapObj.y/this.gridSquareSize) * this.gridSquareSize;
+    }
+
+    cacheMapObjectToGrid(mapObject, xGridCoord=this.xGridCoord(mapObject), yGridCoord=this.yGridCoord(mapObject)) {
+        let square = this.mapObjectsGridCache.get(`${xGridCoord}x${yGridCoord}`);
+
+        if (square == undefined)
+            square = [];
+
+        if (square.find(mapObjId => mapObjId == mapObject.ID) == undefined)
+            square.push(mapObject.ID);
+        
+        this.mapObjectsGridCache.set(`${xGridCoord}x${yGridCoord}`, square);
+    }
+
+    /**
+     * Caches data to a hashmap grid, so that the queries for
+     * which points are on screen can be conducted faster.
+     * (JS Objects are typically implemented as hashmaps, but
+     * aren't explicitly referred to as such.)
+     */
+    cacheDataToGrid() {
+        this.mapObjectsGridCache.clear();
+        
+        let points = this.database.getMapObjectsOfType("POINT");
+        for (let i = 0; i < points.length; i++) {
+            const point = points[i];
+            this.cacheMapObjectToGrid(point);
+        }
+
+        let pathParts = this.database.getMapObjectsOfType("PART");
+        for (let i = 0; i < pathParts.length; i++) {
+            const part = pathParts[i];
+            this.cacheMapObjectToGrid(part);
+        }
+
+        let paths = this.database.getMapObjectsOfType("PATH");
+        for (let i = 0; i < paths.length; i++) {
+            const path = paths[i];
+            path.getAllPointsOnPath(canvasState.database).forEach(point => {
+                this.cacheMapObjectToGrid(path, this.xGridCoord(point), this.yGridCoord(point));
+            });
+        }
+
+        let areas = this.database.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]);
+        for (let i = 0; i < areas.length; i++) {
+            const area = areas[i];
+            area.getAllPoints(canvasState.database).forEach(point => {
+                this.cacheMapObjectToGrid(area, this.xGridCoord(point), this.yGridCoord(point));
+            })
+        }
+
+        let complexAreas = this.database.getMapObjectsOfType("COMPLEX-AREA");
+        for (let i = 0; i < complexAreas.length; i++) {
+            const complexArea = complexAreas[i];
+            let areas = complexArea.innerAreaIDs.map(id => this.database.db.get(id));
+            areas.push(this.database.db.get(complexArea.outerAreaID));
+
+            for (let j = 0; j < areas.length; j++) {
+                const area = areas[j];
+                area.getAllPoints(canvasState.database).forEach(point => {
+                    this.cacheMapObjectToGrid(complexArea, this.xGridCoord(point), this.yGridCoord(point));
+                })
+            }
+        }
+    }
+}
+
 shared.MapDataObject = class MapDataObject {
     /** String for the ID of the data object */
     ID = null;
@@ -367,6 +456,16 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
         let nextPathPart = this.getNextPart(database);
         if (!nextPathPart) return false;
         return nextPathPart.getPoint(database);
+    }
+
+    get x() {
+        let mapPoint = this.getPoint(canvasState.database);
+        return mapPoint.x;
+    } 
+
+    get y() {
+        let mapPoint = this.getPoint(canvasState.database);
+        return mapPoint.x.y;
     }
 }
 

@@ -232,8 +232,47 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
             label = metadata.wikipedia.slice(metadata.wikipedia.indexOf("en:")+3);
         else if (metadata.name != undefined) 
             label = metadata.name;
+        else if (metadata.prow_ref != undefined)
+            label = metadata.prow_ref;
+        else if (metadata.ref != undefined)
+            label = metadata.ref;
 
         return encodeHTML(label);
+    }
+
+    get metadataHTML() {
+        let html = "";
+        let metadata = this.metadata;
+        if (metadata.path != undefined && metadata.path.osm != undefined) metadata = metadata.path.osm;
+
+        Object.keys(metadata).forEach(key => {
+            html += `<br/><strong>${encodeHTML(key)}:</strong> ${encodeHTML(metadata[key])}`;
+        })
+
+        return html;
+    }
+
+    get locationType() {
+        let metadata = this.metadata;
+        let type = "Location";
+        if (metadata.path != undefined && metadata.path.osm != undefined) metadata = metadata.path.osm;
+
+        if (metadata.highway != undefined && this.metadata.path != undefined)
+            type = `Road: ${metadata.highway}`;
+        else if (metadata.highway != undefined && this.metadata.path == undefined)
+            type = `${metadata.highway}`;
+        else if (metadata.waterway != undefined)
+            type = `Waterway: ${metadata.waterway}`
+        else if (metadata.railway == "site")
+            type = `Rail station`;
+        else if (metadata.tourism != undefined)
+            type = `${metadata.tourism}`;
+        else if (metadata.public_transport != undefined)
+            type = `Transport ${metadata.public_transport}`;
+        else if (metadata.barrier)
+            type = `${metadata.barrier}`;
+        
+        return (type[0].toUpperCase() + type.slice(1)).replaceAll("_", " ");
     }
 
     /**

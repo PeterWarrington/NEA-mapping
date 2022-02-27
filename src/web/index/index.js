@@ -456,10 +456,10 @@ class CanvasState {
     }
 
     translateToCoords(x,y,zoom=true) {
+        if (zoom) canvasState.zoomLevel = 4;
+
         canvasState.xTranslation = -x + (75 / canvasState.zoomLevel);
         canvasState.yTranslation = -y + (200 / canvasState.zoomLevel);
-
-        if (zoom) canvasState.zoomLevel = 0.7;
 
         canvasState.draw();
     }
@@ -481,7 +481,9 @@ class CanvasState {
                 let maxX;
                 let maxY;
 
-                // Display search reuslts
+                canvasState.pointsToDraw = [];
+
+                // Display search results
                 let points = [];
                 for (let i = 0; i < responseArray.length; i++) {
                     const mapObject = responseArray[i].mapObject;
@@ -497,15 +499,24 @@ class CanvasState {
                         point.metadata.path = path.metadata;
                     }
 
-                    points.push(point);
+                    point.searchScore = responseArray[i].score;
+
                     this.database.addMapObject(point);
+
+                    // If no label available, don't display if search confidence is below % of max
+                    if (points.length > 0 && point.label == point.ID && point.searchScore < points[0].searchScore * 0.6) continue;
+
+                    points.push(point);
                     
                     point.options = {
                         pointDrawMethod: "text",
-                        pointText: `📌${i+1}`,
+                        pointText: `📌`,
+                        labelText: `${i+1}`,
+                        labelFontWidth: 20,
                         pointFont: "sans-serif",
                         pointFontWidth: 25,
                         pointFillStyle: "#878787",
+                        labelBorderStyle: "white",
                         pathDrawPointX: 3,
                         pathDrawPointY: -6
                     }
@@ -553,18 +564,25 @@ class CanvasState {
                         <div class="accordion-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button ${collapsed}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${i}">
-                            📌${i+1}: ${point.label}
+                            📌${i+1}: ${point.label} <span class="fw-lighter">&nbsp;(${point.locationType})</span>
                             </button>
                         </h2>
                         <div id="collapse${i}" class="accordion-collapse collapse ${expanded}">
                             <div class="accordion-body">
-                            <a href="javascript:canvasState.translateToCoords(${point.x},${point.y})"><strong>Go to point.</strong></a>
+                            <a href="javascript:canvasState.translateToCoords(${point.x},${point.y})">
+                            <strong>Go to point.</strong></a>
+                            <br/><strong>Search confidence:</strong> ${point.searchScore}
+                            ${point.metadataHTML}
                             </div>
                         </div>
                         </div>`;
 
                     if (point.metadata.path != undefined) point.metadata.path = undefined;
                 }
+                
+                // Make search results draggable
+                $("#results").draggable({cancel: "#results-accordion"});
+
                 (new bootstrap.Toast(resultsEl)).show();
             } catch (err) {console.log(err)}
         });
@@ -942,9 +960,18 @@ class MapPoint extends shared.MapPoint {
         }
 
         if (this.options.pointDrawMethod == "text") {
+            // Draw point
             canvasState.ctx.fillStyle = this.options.pointFillStyle;
             canvasState.ctx.font = `${this.options.pointFontWidth}px ${this.options.pointFont}`;
             canvasState.ctx.fillText(this.options.pointText, this.displayedX, this.displayedY);
+
+            // Draw label
+            let xOffset = canvasState.ctx.measureText(this.options.pointText).width + 3;
+            canvasState.ctx.fillStyle = this.options.pointFillStyle;
+            canvasState.ctx.strokeStyle = this.options.labelBorderStyle;
+            canvasState.ctx.font = `${this.options.labelFontWidth}px ${this.options.pointFont}`;
+            canvasState.ctx.strokeText(this.options.labelText, this.displayedX + xOffset, this.displayedY);
+            canvasState.ctx.fillText(this.options.labelText, this.displayedX + xOffset, this.displayedY);
         }
     }
 

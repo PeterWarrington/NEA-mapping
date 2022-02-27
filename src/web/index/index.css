@@ -33,14 +33,21 @@ html, body {
 }
 #results {
     position: absolute;
-    padding: 15pt;
-    padding-bottom: 20pt;
+    padding: 0;
     right: 5pt;
     margin: 5pt;
     width: 500px;
     max-width: 90vw;
-    max-height: 60vh;
+}
+#results-accordion {
     overflow-y: scroll;
+    max-height: 60vh;
+}
+#results .toast-header {
+    cursor: grab;
+}
+#results .toast-header button {
+    cursor: auto;
 }
 #loading-indicator {
     width: 35px;

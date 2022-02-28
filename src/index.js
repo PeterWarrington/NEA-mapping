@@ -35,6 +35,12 @@ getData(() => {
     app.use(express.static('web', options));
     app.use(express.static('shared', options));
 
+    // Error handler
+    app.use((err, req, res, next) => {
+        logger.log(err.stack)
+        res.status(500).send("error: misc");
+    })
+
     app.listen(port);
 
     logger.log(`Server has started at http://${hostname}:${port}`);

@@ -30,13 +30,18 @@ module.exports.findRoute = (shared, req, res) => {
     } else inputError = true;
 
     if (inputError) {
-        res.end("error");
+        res.end("error: input");
         return;
     }
 
     // Find point on highway nearest to starting point
     let startingHighway = nearestHighwayPoint(startingPoint, shared);
     let destinationHighway = nearestHighwayPoint(destinationPoint, shared);
+
+    if (startingHighway.error || destinationHighway.error) {
+        res.end(`error: highway point undefined. error: {a:${startingHighway.error}, b:${destinationHighway.error}}`);
+        return;
+    }
 
     let route = dijkstras(startingHighway, destinationHighway, shared);
 
@@ -72,6 +77,8 @@ function nearestHighwayPoint(pointA, shared) {
             }
         }
     }
+
+    if (closestPoint == undefined) return {error: true};
 
     return {point: closestPoint, path: closestPath};
 }

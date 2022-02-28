@@ -26,8 +26,8 @@ module.exports.findRoute = (shared, req, res) => {
         return;
     }
 
-    let startingPointID = quickSearch(startingPointTerm);
-    let destinationPointID = quickSearch(destinationPointTerm);
+    let startingPointID = quickSearch(startingPointTerm, shared.database);
+    let destinationPointID = quickSearch(destinationPointTerm, shared.database);
 
     if (startingPointID == undefined || destinationPointID == undefined) {
         res.end("error: input");
@@ -51,9 +51,16 @@ module.exports.findRoute = (shared, req, res) => {
     res.send(route);
 };
 
-function quickSearch(term) {
-    let result = PointSearch.pointSearch(term).find(result => result.mapObject.ID.indexOf("POINT") == 0);
-    if (result == undefined) return result;
+function quickSearch(term, database) {
+    let result = PointSearch.pointSearch(term).find(result => result.mapObject.ID.indexOf("POINT") == 0 || result.mapObject.ID.indexOf("PATH") == 0);
+
+    if (result == undefined) return undefined;
+
+    if (result.mapObject.ID.indexOf("PATH") == 0) {
+        let path = database.db.get(result.mapObject.ID)
+        return shared.getPathMidpoint(path, database).ID;
+    }
+
     return result.mapObject.ID;
 }
 
@@ -63,7 +70,7 @@ function isAcceptedPath(path) {
 }
 
 function nearestHighwayPoint(pointA, shared) {
-    let squaresToExamine = [shared.mapObjectsGridCache.getSurroundingSquareContent(pointA, 5)];
+    let squaresToExamine = [shared.mapObjectsGridCache.getSurroundingSquareContent(pointA, 10)];
     let closestPoint;
     let closestPath;
 

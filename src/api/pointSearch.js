@@ -17,7 +17,7 @@ class SearchResult {
  * @param {*} req 
  * @param {*} res 
  */
-module.exports.pointSearch = (shared, req, res) => {
+module.exports.pointSearchAPI = (shared, req, res) => {
     // Get search params
     var searchTerm;
     let inputError = false;
@@ -34,6 +34,12 @@ module.exports.pointSearch = (shared, req, res) => {
         return;
     }
 
+    let searchResults = module.exports.pointSearch(searchTerm);
+
+    res.send(searchResults);
+};
+
+module.exports.pointSearch = (searchTerm) => {
     // Returned database will just contain points, should not just be merged into client db
     var searchResults = [];
 
@@ -63,5 +69,5 @@ module.exports.pointSearch = (shared, req, res) => {
 
     searchResults = searchResults.slice(0, 20);
 
-    res.send(searchResults);
-};
+    return searchResults;
+}

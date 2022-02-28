@@ -29,7 +29,7 @@ getData(() => {
     app.get("/api/GetTestOSMpoints", (req, res) => require("./api/getTestOSMpoints.js").getTestOSMpoints(shared, req, res));
     app.get("/api/GetDBfromFile", (req, res) => require("./api/getDBfromFile.js").getDBfromFile(shared, req, res));
     app.get("/api/GetDBfromQuery", (req, res) => require("./api/dbFromQuery.js").getDBfromQuery(shared, req, res));
-    app.get("/api/PointSearch", (req, res) => require("./api/pointSearch.js").pointSearch(shared, req, res));
+    app.get("/api/PointSearch", (req, res) => require("./api/pointSearch.js").pointSearchAPI(shared, req, res));
     app.get("/api/FindRoute", (req, res) => require("./api/findRoute.js").findRoute(shared, req, res));
 
     app.use(express.static('web', options));

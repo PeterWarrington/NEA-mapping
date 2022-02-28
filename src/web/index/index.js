@@ -596,7 +596,7 @@ class CanvasState {
 
             document.getElementById("route-status").innerText = "Route found!";
         });
-        http.open("GET", `/api/FindRoute?startingPointID="${pointA}"&destinationPointID="${pointB}"`);
+        http.open("GET", `/api/FindRoute?startingPointTerm="${pointA}"&destinationPointTerm="${pointB}"`);
         http.send();
         document.getElementById("route-status").innerText = "Finding...";
     }

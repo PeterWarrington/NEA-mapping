@@ -1,4 +1,5 @@
 logger = new (require('../logging.js').Logger)();
+PointSearch = require("./pointSearch.js");
 
 /**
  * Uses path finding to find the shortest route from a starting point
@@ -8,24 +9,15 @@ logger = new (require('../logging.js').Logger)();
  * @param {*} res 
  */
 module.exports.findRoute = (shared, req, res) => {
-    var startingPoint;
-    var destinationPoint;
+    var startingPointTerm;
+    var destinationPointTerm;
 
     let inputError = false;
-    if (req.query.startingPointID != undefined && req.query.destinationPointID != undefined) {
+    if (req.query.startingPointTerm != undefined && req.query.destinationPointTerm != undefined) {
         // Convert search terms from json
         try {
-            startingPointID = JSON.parse(decodeURI(req.query.startingPointID));
-            if (typeof startingPointID == "string") {
-                startingPoint = shared.database.db.get(startingPointID);
-                if (startingPoint == undefined) inputError = true;
-            } else inputError = true;
-
-            destinationPointID = JSON.parse(decodeURI(req.query.destinationPointID));
-            if (typeof destinationPointID == "string") {
-                destinationPoint = shared.database.db.get(destinationPointID);
-                if (destinationPoint == undefined) inputError = true;
-            } else inputError = true;
+            startingPointTerm = JSON.parse(decodeURI(req.query.startingPointTerm));
+            destinationPointTerm = JSON.parse(decodeURI(req.query.destinationPointTerm));
         } catch {inputError = true}
     } else inputError = true;
 
@@ -33,6 +25,17 @@ module.exports.findRoute = (shared, req, res) => {
         res.end("error: input");
         return;
     }
+
+    let startingPointID = quickSearch(startingPointTerm);
+    let destinationPointID = quickSearch(destinationPointTerm);
+
+    if (startingPointID == undefined || destinationPointID == undefined) {
+        res.end("error: input");
+        return;
+    }
+
+    let startingPoint = shared.database.db.get(startingPointID);
+    let destinationPoint = shared.database.db.get(destinationPointID);
 
     // Find point on highway nearest to starting point
     let startingHighway = nearestHighwayPoint(startingPoint, shared);
@@ -47,6 +50,12 @@ module.exports.findRoute = (shared, req, res) => {
 
     res.send(route);
 };
+
+function quickSearch(term) {
+    let result = PointSearch.pointSearch(term).find(result => result.mapObject.ID.indexOf("POINT") == 0);
+    if (result == undefined) return result;
+    return result.mapObject.ID;
+}
 
 function isAcceptedPath(path) {
     return ["motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link"]

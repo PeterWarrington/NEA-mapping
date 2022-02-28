@@ -54,7 +54,7 @@ module.exports.pointSearch = (searchTerm) => {
         // let regexMatchNoWhitespace = new RegExp(`${searchTerm}`, "gi");
         // let matchesNoWhitespace = [...metadataAsString.matchAll(regexMatchNoWhitespace)];
         let regexMatchSimple = new RegExp(`${searchTerm}`, "gi");
-        let matchesSimple = [...metadataAsString.replaceAll(" ","|").matchAll(regexMatchSimple)];
+        let matchesSimple = [...metadataAsString.matchAll(regexMatchSimple)];
         let matchesIDscore = (mapObject.ID == searchTerm) ? 20 : 0;
         let isPlaceScore = (mapObject.metadata.place != undefined && matchesSimple.length != 0) ? 15 : 0;
         let score = isPlaceScore + matchesIDscore + matchesSimple.length;

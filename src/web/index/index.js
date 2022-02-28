@@ -527,7 +527,13 @@ class CanvasState {
                             <br/><strong>Search confidence:</strong> ${point.searchScore}
                             <br/><strong>ID:</strong> ${point.ID}
                             <br/><strong>Is path:</strong> ${point.metadata.path != undefined}
-                            ${point.metadataHTML}
+                            <br/>
+                            <a class="link-secondary" data-bs-toggle="collapse" href="#metadata-collapse-${i}" role="button">
+                                Show/hide additional metadata.
+                            </a>
+                            <div class="collapse" id="metadata-collapse-${i}">
+                                ${point.metadataHTML}
+                            </div>
                             </div>
                         </div>
                         </div>`;

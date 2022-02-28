@@ -378,7 +378,7 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
         if (metadata.path != undefined && metadata.path.osm != undefined) metadata = metadata.path.osm;
 
         Object.keys(metadata).forEach(key => {
-            html += `<br/><strong>${encodeHTML(key)}:</strong> ${encodeHTML(metadata[key])}`;
+            html += `<strong>${encodeHTML(key)}:</strong> ${encodeHTML(metadata[key])}<br/>`;
         })
 
         return html;

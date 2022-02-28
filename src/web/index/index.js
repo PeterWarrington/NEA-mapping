@@ -1232,13 +1232,21 @@ function MapTest() {
 
     canvasState.updateMapData();
 
-    $("#route-search-toast").draggable({cancel: "#route-search-body"});
-    document.getElementById("route-ui-show-btn").onclick = () =>  (new bootstrap.Toast($("#route-search-toast"))).show();
-    document.getElementById("route-submit-btn").onclick = () => {
+    routeSubmitFunction = () => {
         let pointA_input = document.getElementById("pointA_input").value;
         let pointB_input = document.getElementById("pointB_input").value;
         canvasState.route(pointA_input, pointB_input);
-    };
+    }
+
+    document.getElementById("pointB_input").addEventListener("keypress", function (e) {
+        if (e.key == "Enter") {
+            routeSubmitFunction();
+        }
+    });
+
+    $("#route-search-toast").draggable({cancel: "#route-search-body"});
+    document.getElementById("route-ui-show-btn").onclick = () =>  (new bootstrap.Toast($("#route-search-toast"))).show();
+    document.getElementById("route-submit-btn").onclick = () => {routeSubmitFunction()};
 }
 
 /**

@@ -26,8 +26,8 @@ module.exports.findRoute = (shared, req, res) => {
         return;
     }
 
-    let startingPointID = quickSearch(startingPointTerm, shared.database);
-    let destinationPointID = quickSearch(destinationPointTerm, shared.database);
+    let startingPointID = quickSearch(startingPointTerm, shared);
+    let destinationPointID = quickSearch(destinationPointTerm, shared);
 
     if (startingPointID == undefined || destinationPointID == undefined) {
         res.end("error: input");
@@ -51,8 +51,10 @@ module.exports.findRoute = (shared, req, res) => {
     res.send(route);
 };
 
-function quickSearch(term, database) {
-    let result = PointSearch.pointSearch(term).find(result => result.mapObject.ID.indexOf("POINT") == 0 || result.mapObject.ID.indexOf("PATH") == 0);
+function quickSearch(term, shared) {
+    let database = shared.database;
+
+    let result = PointSearch.pointSearch(term, shared).find(result => result.mapObject.ID.indexOf("POINT") == 0 || result.mapObject.ID.indexOf("PATH") == 0);
 
     if (result == undefined) return undefined;
 

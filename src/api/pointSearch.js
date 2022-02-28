@@ -34,35 +34,31 @@ module.exports.pointSearchAPI = (shared, req, res) => {
         return;
     }
 
-    let searchResults = module.exports.pointSearch(searchTerm);
+    let searchResults = module.exports.pointSearch(searchTerm, shared);
 
     res.send(searchResults);
 };
 
-module.exports.pointSearch = (searchTerm) => {
+module.exports.pointSearch = (searchTerm, shared) => {
     // Returned database will just contain points, should not just be merged into client db
     var searchResults = [];
+    let searchIndex = shared.searchIndex.map;
 
-    // Get points from root db
-    rootDBmapObjects = shared.database.getMapObjectsOfType(["POINT", "PATH"]);
-    rootDBmapObjects.forEach(mapObject => {
-        if (mapObject instanceof shared.Path) mapObject.midpoint = shared.getPathMidpoint(mapObject, shared.database);
-
-        let metadataAsString = JSON.stringify(mapObject.metadata);
+    for (const [id, field] of searchIndex) {
         // let regexWholeWord = new RegExp(`(\s|^|{|")+(${searchTerm})(\s|$|")+`, "gi");
         // let matchesWholeWord = [...metadataAsString.matchAll(regexWholeWord)];
         // let regexMatchNoWhitespace = new RegExp(`${searchTerm}`, "gi");
         // let matchesNoWhitespace = [...metadataAsString.matchAll(regexMatchNoWhitespace)];
         let regexMatchSimple = new RegExp(`${searchTerm}`, "gi");
-        let matchesSimple = [...metadataAsString.matchAll(regexMatchSimple)];
-        let matchesIDscore = (mapObject.ID == searchTerm) ? 20 : 0;
-        let isPlaceScore = (mapObject.metadata.place != undefined && matchesSimple.length != 0) ? 15 : 0;
+        let matchesSimple = [...field.metadataAsString.matchAll(regexMatchSimple)];
+        let matchesIDscore = (id == searchTerm) ? 20 : 0;
+        let isPlaceScore = (field.mapObject.metadata.place != undefined && matchesSimple.length != 0) ? 15 : 0;
         let score = isPlaceScore + matchesIDscore + matchesSimple.length;
         if (score > 0) {
-            let result = new SearchResult(mapObject, score);
+            let result = new SearchResult(field.mapObject, score);
             searchResults.push(result);
         }
-    });
+    }
 
     searchResults.sort((a,b) => {
         return b.score - a.score;
@@ -71,4 +67,23 @@ module.exports.pointSearch = (searchTerm) => {
     searchResults = searchResults.slice(0, 20);
 
     return searchResults;
+}
+
+/**
+ * This creates a search index which is created at start of runtime that
+ * enables stringified metadata to be searched and read from fast.
+ */
+module.exports.SearchIndex = class SearchIndex {
+    /** Maps a map object ID onto its stringified map data */
+    map = new Map();
+
+    /** Initializes the index */
+    constructor (database) {
+        let rootDBmapObjects = database.getMapObjectsOfType(["POINT", "PATH"]);
+        rootDBmapObjects.forEach(mapObject => {
+            let metadataAsString = JSON.stringify(mapObject.metadata);
+            if (mapObject instanceof shared.Path) mapObject.midpoint = shared.getPathMidpoint(mapObject, shared.database);
+            this.map.set(mapObject.ID, {metadataAsString, mapObject});
+        });
+    }
 }

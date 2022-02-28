@@ -59,6 +59,10 @@ function getData(callback) {
     shared.mapObjectsGridCache.gridSquareSize = 10;
     shared.mapObjectsGridCache.cacheDataToGrid();
 
+    // Create search index
+    let SearchIndex = require("./api/pointSearch.js").SearchIndex;
+    shared.searchIndex = new SearchIndex(shared.database);
+
     callback();
 }
 

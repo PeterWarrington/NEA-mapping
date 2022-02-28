@@ -54,7 +54,7 @@ function isAcceptedPath(path) {
 }
 
 function nearestHighwayPoint(pointA, shared) {
-    let squaresToExamine = [shared.mapObjectsGridCache.getSquare(pointA)];
+    let squaresToExamine = [shared.mapObjectsGridCache.getSurroundingSquareContent(pointA, 5)];
     let closestPoint;
     let closestPath;
 

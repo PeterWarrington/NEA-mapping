@@ -293,23 +293,29 @@ shared.MapGridCache = class MapGridCache {
         }
     }
 
-    getSurroundingSquareContent(mapObj) {
+    getSurroundingSquareContent(mapObj, margin) {
         let xGridCoord = this.xGridCoord(mapObj);
         let yGridCoord = this.yGridCoord(mapObj);
 
         let returnSquare = [];
 
-        let squares = [
-            this.getSquare(mapObj, xGridCoord, yGridCoord),
-            this.getSquare(mapObj, xGridCoord, yGridCoord - this.gridSquareSize),
-            this.getSquare(mapObj, xGridCoord, yGridCoord + this.gridSquareSize),
-            this.getSquare(mapObj, xGridCoord - this.gridSquareSize, yGridCoord),
-            this.getSquare(mapObj, xGridCoord - this.gridSquareSize, yGridCoord - this.gridSquareSize),
-            this.getSquare(mapObj, xGridCoord - this.gridSquareSize, yGridCoord + this.gridSquareSize),
-            this.getSquare(mapObj, xGridCoord + this.gridSquareSize, yGridCoord),
-            this.getSquare(mapObj, xGridCoord + this.gridSquareSize, yGridCoord - this.gridSquareSize),
-            this.getSquare(mapObj, xGridCoord + this.gridSquareSize, yGridCoord + this.gridSquareSize)
-        ]
+        let squares = [this.getSquare(mapObj, xGridCoord, yGridCoord)];
+        let currentDistanceFromRootSquare = 1;
+        while (currentDistanceFromRootSquare <= margin) {
+            let offset = this.gridSquareSize * currentDistanceFromRootSquare;
+            squares = squares.concat([
+                this.getSquare(mapObj, xGridCoord, yGridCoord),
+                this.getSquare(mapObj, xGridCoord, yGridCoord - offset),
+                this.getSquare(mapObj, xGridCoord, yGridCoord + offset),
+                this.getSquare(mapObj, xGridCoord - offset, yGridCoord),
+                this.getSquare(mapObj, xGridCoord - offset, yGridCoord - offset),
+                this.getSquare(mapObj, xGridCoord - offset, yGridCoord + offset),
+                this.getSquare(mapObj, xGridCoord + offset, yGridCoord),
+                this.getSquare(mapObj, xGridCoord + offset, yGridCoord - offset),
+                this.getSquare(mapObj, xGridCoord + offset, yGridCoord + offset)
+            ]);
+            currentDistanceFromRootSquare++;
+        }
 
         squares.forEach(square =>
             returnSquare = returnSquare.concat(square)

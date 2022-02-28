@@ -40,7 +40,7 @@ module.exports.pointSearch = (shared, req, res) => {
     // Get points from root db
     rootDBmapObjects = shared.database.getMapObjectsOfType(["POINT", "PATH"]);
     rootDBmapObjects.forEach(mapObject => {
-        if (mapObject instanceof shared.Path) setPathMidPoint(mapObject, shared.database);
+        if (mapObject instanceof shared.Path) mapObject.midpoint = shared.getPathMidpoint(mapObject, shared.database);
 
         let metadataAsString = JSON.stringify(mapObject.metadata);
         let regexWholeWord = new RegExp(`(\s|^|{|")+(${searchTerm})(\s|$|")+`, "gi");
@@ -49,7 +49,8 @@ module.exports.pointSearch = (shared, req, res) => {
         let matchesNoWhitespace = [...metadataAsString.matchAll(regexMatchNoWhitespace)];
         let regexMatchSimple = new RegExp(`${searchTerm}`, "gi");
         let matchesSimple = [...metadataAsString.matchAll(regexMatchSimple)];
-        let score = (matchesWholeWord.length * 3)  + (matchesNoWhitespace.length * 2) + matchesSimple.length;
+        let matchesIDscore = (mapObject.ID == searchTerm) ? 20 : 0;
+        let score = matchesIDscore + (matchesWholeWord.length * 3)  + (matchesNoWhitespace.length * 2) + matchesSimple.length;
         if (score > 0) {
             let result = new SearchResult(mapObject, score);
             searchResults.push(result);
@@ -64,28 +65,3 @@ module.exports.pointSearch = (shared, req, res) => {
 
     res.send(searchResults);
 };
-
-function setPathMidPoint(path, database) {
-    let pathPoints = path.getAllPointsOnPath(database);
-
-    // Sum distance of path so we can find mid point
-    let distanceTotal = 0;
-    let lastPoint = pathPoints[0];
-    pathPoints.forEach(pathPoint => {
-        distanceTotal += Math.sqrt( Math.abs(pathPoint.x - lastPoint.x)**2 + Math.abs(pathPoint.y - lastPoint.y)**2)
-        lastPoint = pathPoint;
-    });
-
-    // Find point nearest to midpoint, use this as point
-    let distanceTraversed = 0;
-    lastPoint = pathPoints[0];
-    for (let j = 0; j < pathPoints.length; j++) {
-        const pathPoint = pathPoints[j];
-        distanceTraversed += Math.sqrt( Math.abs(pathPoint.x - lastPoint.x)**2 + Math.abs(pathPoint.y - lastPoint.y)**2);
-        if (distanceTraversed >= distanceTotal/2) {
-            path.midpoint = pathPoint;
-            break;
-        }
-        lastPoint = pathPoint;
-    }
-}

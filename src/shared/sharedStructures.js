@@ -219,8 +219,16 @@ shared.MapGridCache = class MapGridCache {
         return Math.floor(mapObj.y/this.gridSquareSize) * this.gridSquareSize;
     }
 
+    getSquareRef(mapObj, xGridCoord=this.xGridCoord(mapObj), yGridCoord=this.yGridCoord(mapObj)) {
+        return `${xGridCoord}x${yGridCoord}`;
+    }
+
+    getSquare(mapObj, xGridCoord=this.xGridCoord(mapObj), yGridCoord=this.yGridCoord(mapObj)) {
+        return this.get(this.getSquareRef(mapObj, xGridCoord, yGridCoord));
+    }
+
     cacheMapObjectToGrid(mapObject, xGridCoord=this.xGridCoord(mapObject), yGridCoord=this.yGridCoord(mapObject)) {
-        let square = this.mapObjectsGridCache.get(`${xGridCoord}x${yGridCoord}`);
+        let square = this.get(this.getSquareRef(mapObject, xGridCoord, yGridCoord));
 
         if (square == undefined)
             square = [];
@@ -228,7 +236,7 @@ shared.MapGridCache = class MapGridCache {
         if (square.find(mapObjId => mapObjId == mapObject.ID) == undefined)
             square.push(mapObject.ID);
         
-        this.mapObjectsGridCache.set(`${xGridCoord}x${yGridCoord}`, square);
+        this.mapObjectsGridCache.set(this.getSquareRef(mapObject, xGridCoord, yGridCoord), square);
     }
 
     /**
@@ -249,13 +257,15 @@ shared.MapGridCache = class MapGridCache {
         let pathParts = this.database.getMapObjectsOfType("PART");
         for (let i = 0; i < pathParts.length; i++) {
             const part = pathParts[i];
-            this.cacheMapObjectToGrid(part);
+            this.cacheMapObjectToGrid(part, 
+                this.xGridCoord(part.getPoint(this.database)), 
+                this.yGridCoord(part.getPoint(this.database)));
         }
 
         let paths = this.database.getMapObjectsOfType("PATH");
         for (let i = 0; i < paths.length; i++) {
             const path = paths[i];
-            path.getAllPointsOnPath(canvasState.database).forEach(point => {
+            path.getAllPointsOnPath(this.database).forEach(point => {
                 this.cacheMapObjectToGrid(path, this.xGridCoord(point), this.yGridCoord(point));
             });
         }
@@ -263,7 +273,7 @@ shared.MapGridCache = class MapGridCache {
         let areas = this.database.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]);
         for (let i = 0; i < areas.length; i++) {
             const area = areas[i];
-            area.getAllPoints(canvasState.database).forEach(point => {
+            area.getAllPoints(this.database).forEach(point => {
                 this.cacheMapObjectToGrid(area, this.xGridCoord(point), this.yGridCoord(point));
             })
         }
@@ -276,11 +286,36 @@ shared.MapGridCache = class MapGridCache {
 
             for (let j = 0; j < areas.length; j++) {
                 const area = areas[j];
-                area.getAllPoints(canvasState.database).forEach(point => {
+                area.getAllPoints(this.database).forEach(point => {
                     this.cacheMapObjectToGrid(complexArea, this.xGridCoord(point), this.yGridCoord(point));
                 })
             }
         }
+    }
+
+    getSurroundingSquareContent(mapObj) {
+        let xGridCoord = this.xGridCoord(mapObj);
+        let yGridCoord = this.yGridCoord(mapObj);
+
+        let returnSquare = [];
+
+        let squares = [
+            this.getSquare(mapObj, xGridCoord, yGridCoord),
+            this.getSquare(mapObj, xGridCoord, yGridCoord - this.gridSquareSize),
+            this.getSquare(mapObj, xGridCoord, yGridCoord + this.gridSquareSize),
+            this.getSquare(mapObj, xGridCoord - this.gridSquareSize, yGridCoord),
+            this.getSquare(mapObj, xGridCoord - this.gridSquareSize, yGridCoord - this.gridSquareSize),
+            this.getSquare(mapObj, xGridCoord - this.gridSquareSize, yGridCoord + this.gridSquareSize),
+            this.getSquare(mapObj, xGridCoord + this.gridSquareSize, yGridCoord),
+            this.getSquare(mapObj, xGridCoord + this.gridSquareSize, yGridCoord - this.gridSquareSize),
+            this.getSquare(mapObj, xGridCoord + this.gridSquareSize, yGridCoord + this.gridSquareSize)
+        ]
+
+        squares.forEach(square =>
+            returnSquare = returnSquare.concat(square)
+        );
+
+        return returnSquare.filter(item => item != undefined);
     }
 }
 
@@ -389,6 +424,12 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
 
         return mapPoint;
     }
+
+    distanceToPoint(pointB) {
+        let pointA = this;
+        let distance = Math.sqrt( Math.abs(pointB.x - pointA.x)**2 + Math.abs(pointB.y - pointA.y)**2);
+        return distance;
+    }
 }
 
 /**
@@ -456,16 +497,6 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
         let nextPathPart = this.getNextPart(database);
         if (!nextPathPart) return false;
         return nextPathPart.getPoint(database);
-    }
-
-    get x() {
-        let mapPoint = this.getPoint(canvasState.database);
-        return mapPoint.x;
-    } 
-
-    get y() {
-        let mapPoint = this.getPoint(canvasState.database);
-        return mapPoint.x.y;
     }
 }
 
@@ -649,4 +680,44 @@ shared.ComplexArea = class ComplexArea extends shared.MapDataObject {
 // Used to sanitize labels, etc for adding to DOM https://stackoverflow.com/a/2794366
 function encodeHTML(s) {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+}
+
+shared.getPathMidpoint = (path, database) => {
+    let pathPoints = path.getAllPointsOnPath(database);
+
+    // Sum distance of path so we can find mid point
+    let distanceTotal = 0;
+    let lastPoint = pathPoints[0];
+    pathPoints.forEach(pathPoint => {
+        distanceTotal += Math.sqrt( Math.abs(pathPoint.x - lastPoint.x)**2 + Math.abs(pathPoint.y - lastPoint.y)**2)
+        lastPoint = pathPoint;
+    });
+
+    // Find point nearest to midpoint, use this as point
+    let distanceTraversed = 0;
+    lastPoint = pathPoints[0];
+    for (let j = 0; j < pathPoints.length; j++) {
+        const pathPoint = pathPoints[j];
+        distanceTraversed += Math.sqrt( Math.abs(pathPoint.x - lastPoint.x)**2 + Math.abs(pathPoint.y - lastPoint.y)**2);
+        if (distanceTraversed >= distanceTotal/2) {
+            return pathPoint;
+        }
+        lastPoint = pathPoint;
+    }
+}
+
+shared.getBoundsOfPointArray = (pointArray) => {
+    let minX;
+    let minY;
+    let maxX;
+    let maxY;
+    pointArray.forEach(point => {
+        if (minY == undefined || point.y < minY) minY = point.y;
+        if (minX == undefined || point.x < minX) minX = point.x;
+        if (maxY == undefined || point.y > maxY) maxY = point.y;
+        if (maxX == undefined || point.x > maxX) maxX = point.x;
+    });
+    let maxDistance = Math.sqrt( Math.abs(maxX - minX)**2 + Math.abs(maxY - minY)**2 );
+    let zoomLevel = (400/maxDistance < 10) ? 400/maxDistance : 10;
+    return {minX, minY, maxX, maxY, maxDistance, zoomLevel};
 }

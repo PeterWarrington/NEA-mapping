@@ -45,6 +45,8 @@ class CanvasState {
     mapObjectsGridCache;
     /** Array of points to draw (e.g, search markers are added to this) */
     pointsToDraw = []
+    /** Array of paths to draw over other paths (e.g. routes) */
+    pathsToDraw = []
     /** Stores Events for pinch gestures */
     pointEvents = []
     /** Store previous distance between digits */
@@ -215,9 +217,6 @@ class CanvasState {
 
         let objectsOnScreen = this.getObjectsOnScreen();
 
-        // Nothing to draw
-        if (Object.keys(objectsOnScreen).length == 0) return;
-
         let topLayerAreas = [];
         let areas = objectsOnScreen["AREA"];
         
@@ -263,9 +262,6 @@ class CanvasState {
         }
         // this.database.getMapObjectsOfType("POINT").forEach(point => point.drawPoint(this));
 
-        // Draw points to draw
-        this.pointsToDraw.forEach(point => point.drawPoint());
-
         // Clear drawn labels
         this.labelsDrawn = [];
 
@@ -275,6 +271,10 @@ class CanvasState {
             const path = paths[i];
             path.drawLabel();
         }
+
+        // Draw points and paths to draw
+        this.pointsToDraw.forEach(point => point.drawPoint());
+        this.pathsToDraw.forEach(path => path.plotLine());
 
         if (debug_displayAreasDrawn) debug_displayAreasDrawnFunc();
     }
@@ -459,11 +459,6 @@ class CanvasState {
             try {
                 let responseArray = JSON.parse(http.responseText);
 
-                let minX;
-                let minY;
-                let maxX;
-                let maxY;
-
                 canvasState.pointsToDraw = [];
 
                 // Display search results
@@ -484,41 +479,10 @@ class CanvasState {
 
                     point.searchScore = responseArray[i].score;
 
-                    this.database.addMapObject(point);
-
-                    // If no label available, don't display if search confidence is below % of max
-                    if (points.length > 0 && point.label == point.ID && point.searchScore < points[0].searchScore * 0.6) continue;
+                    // // If no label available, don't display if search confidence is below % of max
+                    // if (points.length > 0 && point.label == point.ID && point.searchScore < points[0].searchScore * 0.6) continue;
 
                     points.push(point);
-                    
-                    point.options = {
-                        pointDrawMethod: "text",
-                        pointText: `📌`,
-                        labelText: `${i+1}`,
-                        labelFontWidth: 20,
-                        pointFont: "sans-serif",
-                        pointFontWidth: 25,
-                        pointFillStyle: "#878787",
-                        labelBorderStyle: "white",
-                        pathDrawPointX: 3,
-                        pathDrawPointY: -6
-                    }
-
-                    if (minY == undefined || point.y < minY) minY = point.y;
-                    if (minX == undefined || point.x < minX) minX = point.x;
-                    if (maxY == undefined || point.y > maxY) maxY = point.y;
-                    if (maxX == undefined || point.x > maxX) maxX = point.x;
-
-                    if (!canvasState.pointsToDraw.includes(point));
-                        canvasState.pointsToDraw.push(point);
-                }
-
-                if (points.length > 0) {
-                    let maxDistance = Math.sqrt( Math.abs(maxX - minX)**2 + Math.abs(maxY - minY)**2 );
-                    canvasState.zoomLevel = (400/maxDistance < 10) ? 400/maxDistance: 10;
-
-                    canvasState.translateToCoords(minX, minY, false);
-                    canvasState.updateMapData();
                 }
 
                 // Show results
@@ -534,7 +498,11 @@ class CanvasState {
                 for (let i = 0; i < points.length; i++) {
                     const point = points[i];
 
+                    let pointToDraw = MapPoint.generatePointWithLabel(point.x, point.y, `${i+1}`);
 
+                    if (!canvasState.pointsToDraw.includes(pointToDraw));
+                        canvasState.pointsToDraw.push(pointToDraw);
+    
                     if (resultsAccordion.innerHTML == null) resultsAccordion.innerHTML = "";
                     resultsAccordion.innerHTML += `
                         <div class="accordion-item">
@@ -548,6 +516,8 @@ class CanvasState {
                             <a href="javascript:canvasState.translateToCoords(${point.x},${point.y})">
                             <strong>Go to point.</strong></a>
                             <br/><strong>Search confidence:</strong> ${point.searchScore}
+                            <br/><strong>ID:</strong> ${point.ID}
+                            <br/><strong>Is path:</strong> ${point.metadata.path != undefined}
                             ${point.metadataHTML}
                             </div>
                         </div>
@@ -555,7 +525,14 @@ class CanvasState {
 
                     if (point.metadata.path != undefined) point.metadata.path = undefined;
                 }
-                
+
+                if (points.length > 0) {
+                    let bounds = shared.getBoundsOfPointArray(points);
+                    canvasState.zoomLevel = bounds.zoomLevel;
+                    canvasState.translateToCoords(bounds.minX, bounds.minY, false);
+                    canvasState.draw();
+                    canvasState.updateMapData();
+                }
                 // Make search results draggable
                 $("#results").draggable({cancel: "#results-accordion"});
 
@@ -566,11 +543,44 @@ class CanvasState {
         http.send();
     }
 
+    route(pointA, pointB) {
+        let http = new XMLHttpRequest();
+        http.addEventListener("load", () => {
+            if (http.responseText=="error") return;
+
+            let responseArray = JSON.parse(http.responseText);
+
+            let pointArray = responseArray.map(simplePoint => shared.MapPoint.mapPointFromObject(simplePoint));
+
+            let path = Path.connectSequentialPoints(pointArray, canvasState.database);
+            path.metadata.pathType = {};
+            path.metadata.pathType["second_level_descriptor"] = "returned_route";
+            canvasState.pathsToDraw = [path];
+
+            let bounds = shared.getBoundsOfPointArray(path.getAllPointsOnPath(canvasState.database));
+            canvasState.zoomLevel = bounds.zoomLevel;
+            canvasState.translateToCoords(bounds.minX, bounds.minY, false);
+
+            let pointA = MapPoint.generatePointWithLabel(pointArray[0].x, pointArray[0].y, `A`);
+            let pointB = MapPoint.generatePointWithLabel(pointArray[pointArray.length - 1].x, pointArray[pointArray.length - 1].y, `B`);
+
+            if (!canvasState.pointsToDraw.includes(pointA));
+                canvasState.pointsToDraw.push(pointA);
+            if (!canvasState.pointsToDraw.includes(pointB));
+                canvasState.pointsToDraw.push(pointB);
+
+            canvasState.updateMapData();
+            canvasState.draw();
+        });
+        http.open("GET", `/api/FindRoute?startingPointID="${pointA}"&destinationPointID="${pointB}"`);
+        http.send();
+    }
+
     /**
      * Returns an array of the path types to display based on zoom level
      */
     getPathTypes() {
-        let pathsToDisplay = ["motorway", "primary", "trunk", "primary_link", "trunk_link", "river"];
+        let pathsToDisplay = ["motorway", "primary", "trunk", "primary_link", "trunk_link", "river", "returned_route"];
         if (this.zoomLevel > 0.05)
             pathsToDisplay = pathsToDisplay.concat(["secondary", "secondary_link"]);
         if (this.zoomLevel > 0.2)
@@ -583,9 +593,6 @@ class CanvasState {
 }
 
 class Path extends shared.Path {
-    /** The {canvasState} instance */
-    canvasState
-
     /** Data, including options for the path when drawing to screen */
     data = {
         borderWidth: 0,
@@ -609,7 +616,7 @@ class Path extends shared.Path {
     /**
      * Plots line by traversing tree.
      */
-     plotLine(canvasState=canvasState) {
+     plotLine() {
         if (canvasState == null) {
             console.warn("Canvas state not defined, unable to plot path.");
             return;
@@ -700,6 +707,12 @@ class Path extends shared.Path {
                 break;
         }
         switch (this.metadata.pathType["second_level_descriptor"]) {
+            case "returned_route":
+                this.data.borderWidth = 0;
+                this.data.lineWidth = 6;
+                this.data.borderStyle = "none";
+                this.data.fillStyle = "#ff293b"; // Red
+                break;
             case "motorway":
               this.data.borderWidth = 4;
               this.data.lineWidth = 1;
@@ -935,6 +948,23 @@ class MapPoint extends shared.MapPoint {
 
     static displayedDistanceBetweenPoints(a, b) {
         return Math.sqrt((a.displayedX - b.displayedX)**2 + (a.displayedY - b.displayedY)**2);
+    }
+
+    static generatePointWithLabel(x, y, label) {
+        let point = new MapPoint(x, y);
+        point.options = {
+            pointDrawMethod: "text",
+            pointText: `📌`,
+            labelText: `${label}`,
+            labelFontWidth: 20,
+            pointFont: "sans-serif",
+            pointFontWidth: 25,
+            pointFillStyle: "#878787",
+            labelBorderStyle: "white",
+            pathDrawPointX: 3,
+            pathDrawPointY: -6
+        }
+        return point;
     }
 }
 
@@ -1176,6 +1206,14 @@ function MapTest() {
     // if(shared.debug_on) debug_viewWholeMap(canvasState);
 
     canvasState.updateMapData();
+
+    $("#route-search-toast").draggable({cancel: "#route-search-body"});
+    document.getElementById("route-ui-show-btn").onclick = () =>  (new bootstrap.Toast($("#route-search-toast"))).show();
+    document.getElementById("route-submit-btn").onclick = () => {
+        let pointA_input = document.getElementById("pointA_input").value;
+        let pointB_input = document.getElementById("pointB_input").value;
+        canvasState.route(pointA_input, pointB_input);
+    };
 }
 
 /**

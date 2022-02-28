@@ -321,8 +321,8 @@ class CanvasState {
         canvasState.area = {
             x: -canvasState.xTranslation - 500,
             y: -canvasState.yTranslation - 500,
-            height: (getAbsoluteHeight(canvasState.canvas)+500)/canvasState.zoomLevel,
-            width: (getAbsoluteWidth(canvasState.canvas) + 500)/canvasState.zoomLevel,
+            height: (getAbsoluteHeight(canvasState.canvas)/canvasState.zoomLevel) + 500,
+            width: (getAbsoluteWidth(canvasState.canvas)/canvasState.zoomLevel) + 500,
             pathTypeCount: pathTypes.length
         };
 
@@ -342,7 +342,7 @@ class CanvasState {
             let wholeDBurl = `/api/GetDBfromFile`;
             let testURLnoMapArea = `/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
             let testURLlimitedArea = `/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
-            let normalURL = `/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}&excludeAreas=${JSON.stringify(this.areasDrawn)}`;
+            let normalURL = `/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}`;
             
             let currentURL;
             if (debug_testDB) currentURL = testingDBurl;
@@ -1146,6 +1146,7 @@ class ComplexArea extends shared.ComplexArea {
         // that are filled to simply be draw over the larger shape
         let innerAreasFilled = [];
         this.innerAreas.forEach(innerArea => {
+            if (innerArea != undefined)
             if (innerArea.metadata.areaType["second_level_descriptor"] != "none") 
                 innerAreasFilled.push(innerArea); 
             else {

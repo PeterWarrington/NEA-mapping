@@ -15,14 +15,14 @@ var debug_searchFilterCount = 0;
  module.exports.getDBfromQuery = function (shared, req, res) {
     var databaseToReturn = new shared.MapDataObjectDB();
 
-    if (shared.debug_on) 
-        logger.log(`Root database has ${shared.database.db.keys().length} items.`);
-        
     let startTime = Date.now();
+
+    // Get map db for area
+    var areaDB = filterByMapArea(req, res, shared.database, shared);
 
     // Filter paths
     paths = [];
-    rootDBpaths = shared.database.getMapObjectsOfType("PATH");
+    rootDBpaths = areaDB.getMapObjectsOfType("PATH");
     for (let i = 0; i < rootDBpaths.length; i++) {
         const path = rootDBpaths[i];
         var meetsCriteria = true;
@@ -36,41 +36,23 @@ var debug_searchFilterCount = 0;
         } else if (meetsCriteria == undefined) return;
     }
 
-    if (shared.debug_on) {
-        logger.log(`PathType filtered database has ${debug_pathTypeFilterCount} paths.`);
-        logger.log(`PathType and search filtered database has ${debug_searchFilterCount} paths.`)
-    }
-
-    if (paths.length == rootDBpaths.length)
-        // We are returning all the contents of the DB, no need to iterate through filtered paths
-        databaseToReturn = shared.database;
-    else
-        paths.forEach(path => {
-            path.copyPathContentsToDB(shared.database, databaseToReturn);
-            databaseToReturn.addMapObject(path);
+    paths.forEach(path => {
+        path.copyPathContentsToDB(areaDB, databaseToReturn);
+        databaseToReturn.addMapObject(path);
+    });
+    
+    areaDB.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]).forEach(area => {
+        databaseToReturn.addMapObject(area);
+        area.mapPointIDs.forEach(mapPointID => {
+            let point = shared.database.db.get(mapPointID);
+            if (point != undefined)
+            databaseToReturn.addMapObject(point);
         });
-    
-    shared.database.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]).forEach(area => {
-        databaseToReturn.addMapObject(area);
-        area.mapPointIDs.forEach(mapPointID => databaseToReturn.addMapObject(shared.database.db.get(mapPointID)));
     });
 
-    shared.database.getMapObjectsOfType("COMPLEX-AREA").forEach(area => {
+    areaDB.getMapObjectsOfType("COMPLEX-AREA").forEach(area => {
         databaseToReturn.addMapObject(area);
     });
-
-    if (shared.debug_on)
-        logger.log(`Unfiltered database has ${databaseToReturn.getMapObjectsOfType("AREA").length} areas.`);
-
-    databaseToReturn = filterByMapArea(req, res, databaseToReturn);
-
-    if (shared.debug_on)
-        logger.log(`Filtered database has ${databaseToReturn.getMapObjectsOfType("AREA").length} areas.`);
-    
-    if (shared.debug_on) 
-        logger.log(`Fully filtered database has ${databaseToReturn.getMapObjectsOfType("PATH").length} paths.`);
-
-
     let returnString = "";
 
     let dbKeys = Array.from(databaseToReturn.db.keys());
@@ -113,20 +95,7 @@ var debug_searchFilterCount = 0;
     return result;
  }
 
- function filterBySearchTerm(req, res, mapObject, shared) {
-    var searchTerm = false;
-    if (req.query.searchTerm != false)
-        searchTerm = req.query.searchTerm;
-    
-    let result = (!searchTerm || searchTerm == undefined ||
-        JSON.stringify(mapObject.metadata).toLowerCase().includes(searchTerm.toLowerCase()));
-
-    if (shared.debug_on && result) debug_searchFilterCount++;
-
-    return result;
- }
-
- function filterByMapArea(req, res, db) {
+ function filterByMapArea(req, res, db, shared) {
      if (req.query.noMapAreaFilter) return db;
 
      // Filter by map area
@@ -134,10 +103,6 @@ var debug_searchFilterCount = 0;
      var y;
      var height;
      var width;
-     var pathTypeCount;
-
-     // These variables refer to the area to exclude from results (because it has already been requested by the client)
-     var excludeAreas = []
 
      var mapAreaError = false;
 
@@ -161,146 +126,34 @@ var debug_searchFilterCount = 0;
          if (area.width != undefined)
              width = parseInt(area.width);
          else mapAreaError = true;
-
-         if (area.pathTypeCount != undefined)
-             pathTypeCount = parseInt(area.pathTypeCount);
-         else mapAreaError = true;
-
-         if (JSON.parse(req.query.excludeAreas) instanceof Array)
-            excludeAreas = JSON.parse(req.query.excludeAreas)
-
-         if (excludeAreas.length > 0 && 
-            (isNaN(excludeAreas.at(-1).x) || isNaN(excludeAreas.at(-1).y) ||
-            isNaN(excludeAreas.at(-1).height) || isNaN(excludeAreas.at(-1).width)))
-            mapAreaError = true;
      } catch (err) {
          mapAreaError = true;
      }
 
      if (mapAreaError) return throwParamError("INVALID_PARAMS: mapArea (dbFromQuery)", res);
 
-     // Find points in map area
      var filteredDB = new shared.MapDataObjectDB();
-     var rootDBpoints = db.getMapObjectsOfType("POINT");
 
-     for (let i = 0; i < rootDBpoints.length; i++) {
-        const point = rootDBpoints[i];
+     // Find objects in map area
+     var idsInArea = shared.mapObjectsGridCache.getSquareContentInBounds(x, y, width, height);
 
-        var outsideOfExcludeArea = true;
-        for (let a = 0; a < excludeAreas.length; a++) {
-            const excludeArea = excludeAreas[a];
-            outsideOfExcludeArea = outsideOfExcludeArea && (excludeArea.pathTypeCount < pathTypeCount ||
-                (point.x <= excludeArea.x || point.x >= excludeArea.x + excludeArea.width ||
-                point.y <= excludeArea.y || point.y >= excludeArea.y + excludeArea.height)
-            );
-            if (!outsideOfExcludeArea) break;
+     for (let i = 0; i < idsInArea.length; i++) {
+        const objectID = idsInArea[i];
+        let mapObject = db.db.get(objectID);
+
+        if (mapObject == undefined)
+            continue;
+
+        filteredDB.addMapObject(mapObject);
+
+        // If path, add whole path, its parts and points to db
+        if (mapObject instanceof shared.Path) {
+            let path = mapObject;
+            path.copyPathContentsToDB(db, filteredDB);
         }
-        
-        if (outsideOfExcludeArea && point.y >= y && point.y <= y + height
-            && point.x >= x && point.x <= x + width)
-            filteredDB.addMapObject(point);
-     }
-
-     // Filter path parts to those that only contain filtered points
-     var rootDBparts = db.getMapObjectsOfType("PART");
-
-     for (let i = 0; i < rootDBparts.length; i++) {
-         const part = rootDBparts[i];
-         if (filteredDB.db.get(part.pointID) != undefined)
-            filteredDB.addMapObject(part);
-     }
-
-     // Add whole path, its parts and points to DB if part of path is in DB
-     var rootDBpaths = db.getMapObjectsOfType("PATH");
-     for (let i = 0; i < rootDBpaths.length; i++) {
-         const path = shared.Path.pathFromObject(rootDBpaths[i]);
-
-         let resolvedPathPart = resolvePathPartID(filteredDB, db, path.startingPathPartID);
-         let partOfPathInFilteredDB = resolvedPathPart != false;
-
-         if (partOfPathInFilteredDB) {
-            // Iterate through path parts, adding point and path part to DB before adding path
-            let currentPathPartID = path.startingPathPartID;
-            let getCurrentPathPart = () => db.db.get(currentPathPartID);
-            let getCurrentPointID = () => getCurrentPathPart().pointID;
-            do {
-                if (filteredDB.db.get(getCurrentPointID()) == undefined) {
-                    filteredDB.addMapObject(db.db.get(getCurrentPointID()));
-                }
-                filteredDB.addMapObject(getCurrentPathPart());
-                currentPathPartID = getCurrentPathPart().nextPathPartIDs[0];
-            } while (getCurrentPathPart() != undefined);
-            filteredDB.addMapObject(path);
-         }
-     }
-
-     // Filter areas to those that contain at least one node in viewed area
-     let rootAreas = db.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]);
-     for (let i = 0; i < rootAreas.length; i++) {
-         let area;
-
-         if (rootAreas[i] instanceof shared.ComplexAreaPart)
-            area = new shared.ComplexAreaPart(rootAreas[i].mapPointIDs, rootAreas[i].innerOrOuter, rootAreas[i].data)
-         else if (rootAreas[i] instanceof shared.Area)
-            area = new shared.Area(rootAreas[i].mapPointIDs, rootAreas[i].data);
-
-         area.ID = rootAreas[i].ID;
-         area.metadata = rootAreas[i].metadata;
-
-         let idsToRemove = [];
-         let areaAddedToDB = false;
-
-         for (let j = 0; j < area.mapPointIDs.length; j++) {
-             const mapPointID = area.mapPointIDs[j];
-             if (filteredDB.db.get(mapPointID) != undefined) {
-                if (!areaAddedToDB)
-                    filteredDB.addMapObject(area);
-                areaAddedToDB = true;
-             }
-         }
-
-         // Add those nodes that are not in displayed region but are part of Area
-         if (areaAddedToDB)
-         for (let j = 0; j < area.mapPointIDs.length; j++) {
-            const mapPointID = area.mapPointIDs[j];
-            if (filteredDB.db.get(mapPointID) == undefined)
-                filteredDB.addMapObject(db.db.get(mapPointID));
-        }
-
-         // Replace array with mapPointIDs that are not in idsToRemove
-         area.mapPointIDs = area.mapPointIDs.filter(mapPointID => idsToRemove.indexOf(mapPointID) == -1);
-     }
-
-     let rootComplexAreas = db.getMapObjectsOfType("COMPLEX-AREA");
-     for (let i = 0; i < rootComplexAreas.length; i++) {
-        const complexArea = rootComplexAreas[i];
-        let innerAreasDefined = complexArea.innerAreaIDs.filter(id => filteredDB.db.get(id) != undefined).length == complexArea.innerAreaIDs.length;
-         if (filteredDB.db.get(complexArea.outerAreaID) != undefined
-            && innerAreasDefined)
-                filteredDB.addMapObject(complexArea);
      }
 
      return filteredDB;
- }
-
- /**
-  * If a pathPart contains a point that isn't in filteredDB, return the next pathPartID in chain that is.
-  * @param {*} filteredDB 
-  * @param {*} db 
-  * @param {*} pathPartID 
-  * @returns {string} pathPartID
-  */
- function resolvePathPartID(filteredDB, db, pathPartID) {
-    while (filteredDB.db.get(pathPartID) == undefined) {
-        if (db.db.get(pathPartID).nextPathPartIDs.length != 0)
-            pathPartID = db.db.get(pathPartID).nextPathPartIDs[0];
-        else {
-            // The path has ended, flag to replace with empty array
-            pathPartID = false;
-            break;
-        }
-    }
-    return pathPartID;
  }
 
  function throwParamError(errorDesc, res) {

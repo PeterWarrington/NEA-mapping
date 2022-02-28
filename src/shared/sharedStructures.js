@@ -211,12 +211,20 @@ shared.MapGridCache = class MapGridCache {
         return this.mapObjectsGridCache.get(squareRef);
     }
 
-    xGridCoord(mapObj) {
-        return Math.floor(mapObj.x/this.gridSquareSize) * this.gridSquareSize;
+    xGridCoord(value) {
+        let x;
+        if (value.x != undefined) x = value.x;
+        else x = value;
+
+        return Math.floor(x/this.gridSquareSize) * this.gridSquareSize;
     } 
 
-    yGridCoord(mapObj) {
-        return Math.floor(mapObj.y/this.gridSquareSize) * this.gridSquareSize;
+    yGridCoord(value) {
+        let y;
+        if (value.y != undefined) y = value.y;
+        else y = value;
+
+        return Math.floor(y/this.gridSquareSize) * this.gridSquareSize;
     }
 
     getSquareRef(mapObj, xGridCoord=this.xGridCoord(mapObj), yGridCoord=this.yGridCoord(mapObj)) {
@@ -286,6 +294,7 @@ shared.MapGridCache = class MapGridCache {
 
             for (let j = 0; j < areas.length; j++) {
                 const area = areas[j];
+                if (area != undefined)
                 area.getAllPoints(this.database).forEach(point => {
                     this.cacheMapObjectToGrid(complexArea, this.xGridCoord(point), this.yGridCoord(point));
                 })
@@ -322,6 +331,32 @@ shared.MapGridCache = class MapGridCache {
         );
 
         return returnSquare.filter(item => item != undefined);
+    }
+
+    static coordsFromRef(ref) {
+        let xGridCoordString = ref.slice(0, ref.indexOf('x'));
+        let yGridCoordString = ref.slice(ref.indexOf('x') + 1);
+        let x = Number(xGridCoordString);
+        let y = Number(yGridCoordString);
+
+        return {x, y}
+    }
+
+    getSquareContentInBounds(x, y, width, height) {
+        let currentCoords = {};
+        let squareContent = [];
+        currentCoords.y = this.yGridCoord(y);
+        while (currentCoords.y < y + height) {
+            currentCoords.x = this.xGridCoord(x);
+            while (currentCoords.x < x + width) {
+                let square = this.get(`${currentCoords.x}x${currentCoords.y}`);
+                if (square != undefined)
+                    square.forEach(id => squareContent.push(id));
+                currentCoords.x += this.gridSquareSize;
+            }
+            currentCoords.y += this.gridSquareSize;
+        }
+        return squareContent;
     }
 }
 

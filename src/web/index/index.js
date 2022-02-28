@@ -557,12 +557,14 @@ class CanvasState {
     route(pointA, pointB) {
         let http = new XMLHttpRequest();
         http.addEventListener("load", () => {
-            if (http.responseText.indexOf("error") == 0) {
+            if (http.responseText.indexOf("error") == 0 || http.responseText == "[]") {
                 let errorText = "An error occurred.";
                 if (http.responseText == "error: input")
                     errorText = "Could not find points.";
                 if (http.responseText.indexOf("error: highway point undefined.") == 0)
                     errorText = "One or more of the points is not near enough to an accepted highway to be able to find a route.";
+                if (http.responseText == "[]")
+                    errorText = "Unable to find route.";
 
                 document.getElementById("route-status").innerText = errorText + " :-(";
                 return
@@ -1136,6 +1138,8 @@ class ComplexArea extends shared.ComplexArea {
     }
 
     draw() {
+        if (this.outerArea == undefined) return;
+
         this.outerArea.setAreaDrawStyle(canvasState);
         canvasState.ctx.beginPath();
 

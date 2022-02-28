@@ -158,11 +158,11 @@ function dijkstras(startingHighway, destinationHighway, shared) {
 
         let nextNode;
 
-        unvisitedNodes.forEach(node => {
-            if ((nextNode == undefined || nodeProps.get(node.ID).distance < nodeProps.get(nextNode.ID).distance)) {
-                nextNode = node;
+        for (let node of unvisitedNodes) {
+            if ((nextNode == undefined || nodeProps.get(node[0]).distance < nodeProps.get(nextNode.ID).distance)) {
+                nextNode = node[1];
             };
-        })
+        }
 
         if (nextNode == undefined) return [];
 

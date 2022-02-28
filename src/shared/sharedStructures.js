@@ -625,6 +625,7 @@ shared.Path = class Path extends shared.MapDataObject {
                 
             previousPathPart = currentPathPart;
         }
+        
         var newPath = new shared.Path(startingPathPart.ID);
         return newPath;
     }

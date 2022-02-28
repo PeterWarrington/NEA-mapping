@@ -452,9 +452,24 @@ class CanvasState {
      * @param {string} input search term
      */
     search = (input) => {
+        var resultsAccordion = document.getElementById("results-accordion");
+
+        resultsAccordion.innerHTML = "<strong class='text-muted'>Searching...</strong>";
+        document.getElementById("results-title").innerText = `Search results for "${input}"`;
+
+        // Make search results draggable
+        $("#results").draggable({cancel: "#results-accordion"});
+
+        // Show results dialog
+        let resultsEl = document.getElementById("results");
+        (new bootstrap.Toast(resultsEl)).show();
+
         let http = new XMLHttpRequest();
         http.addEventListener("load", () => {
-            if (http.responseText=="error") return;
+            if (http.responseText.indexOf("error") == 0) {
+                resultsAccordion.innerHTML = "<strong class='text-muted'>An error occurred :-(</strong>";
+                return;
+            };
 
             try {
                 let responseArray = JSON.parse(http.responseText);
@@ -485,15 +500,10 @@ class CanvasState {
                     points.push(point);
                 }
 
-                // Show results
-                let resultsEl = document.getElementById("results");
-                document.getElementById("results-title").innerText = `Search results for "${input}"`;
-
-                let resultsAccordion = document.getElementById("results-accordion");
-
                 resultsAccordion.innerHTML = "";
 
-                if (points.length == 0) resultsAccordion.innerHTML += "<strong class='text-muted'>No results found :-(</strong>";
+                if (points.length == 0) resultsAccordion.innerHTML = "<strong class='text-muted'>No results found :-(</strong>";
+                else resultsAccordion.innerHTML = "";
 
                 for (let i = 0; i < points.length; i++) {
                     const point = points[i];
@@ -502,8 +512,7 @@ class CanvasState {
 
                     if (!canvasState.pointsToDraw.includes(pointToDraw));
                         canvasState.pointsToDraw.push(pointToDraw);
-    
-                    if (resultsAccordion.innerHTML == null) resultsAccordion.innerHTML = "";
+
                     resultsAccordion.innerHTML += `
                         <div class="accordion-item">
                         <h2 class="accordion-header">
@@ -533,10 +542,6 @@ class CanvasState {
                     canvasState.draw();
                     canvasState.updateMapData();
                 }
-                // Make search results draggable
-                $("#results").draggable({cancel: "#results-accordion"});
-
-                (new bootstrap.Toast(resultsEl)).show();
             } catch (err) {console.log(err)}
         });
         http.open("GET", `/api/PointSearch?searchTerm="${input}"`);
@@ -546,7 +551,16 @@ class CanvasState {
     route(pointA, pointB) {
         let http = new XMLHttpRequest();
         http.addEventListener("load", () => {
-            if (http.responseText=="error") return;
+            if (http.responseText.indexOf("error") == 0) {
+                let errorText = "An error occurred.";
+                if (http.responseText == "error: input")
+                    errorText = "Could not find points.";
+                if (http.responseText.indexOf("error: highway point undefined.") == 0)
+                    errorText = "One or more of the points is not near enough to an accepted highway to be able to find a route.";
+
+                document.getElementById("route-status").innerText = errorText + " :-(";
+                return
+            };
 
             let responseArray = JSON.parse(http.responseText);
 
@@ -564,6 +578,8 @@ class CanvasState {
             let pointA = MapPoint.generatePointWithLabel(pointArray[0].x, pointArray[0].y, `A`);
             let pointB = MapPoint.generatePointWithLabel(pointArray[pointArray.length - 1].x, pointArray[pointArray.length - 1].y, `B`);
 
+            canvasState.pointsToDraw = [];
+
             if (!canvasState.pointsToDraw.includes(pointA));
                 canvasState.pointsToDraw.push(pointA);
             if (!canvasState.pointsToDraw.includes(pointB));
@@ -571,9 +587,12 @@ class CanvasState {
 
             canvasState.updateMapData();
             canvasState.draw();
+
+            document.getElementById("route-status").innerText = "Route found!";
         });
         http.open("GET", `/api/FindRoute?startingPointID="${pointA}"&destinationPointID="${pointB}"`);
         http.send();
+        document.getElementById("route-status").innerText = "Finding...";
     }
 
     /**

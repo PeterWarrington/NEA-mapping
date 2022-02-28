@@ -44,10 +44,10 @@ html, body {
     overflow-y: scroll;
     max-height: 60vh;
 }
-#results .toast-header {
+.toast-header {
     cursor: grab;
 }
-#results .toast-header button {
+.toast-header button {
     cursor: auto;
 }
 #route-search-toast {

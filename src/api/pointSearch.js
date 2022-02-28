@@ -43,14 +43,14 @@ module.exports.pointSearch = (shared, req, res) => {
         if (mapObject instanceof shared.Path) mapObject.midpoint = shared.getPathMidpoint(mapObject, shared.database);
 
         let metadataAsString = JSON.stringify(mapObject.metadata);
-        let regexWholeWord = new RegExp(`(\s|^|{|")+(${searchTerm})(\s|$|")+`, "gi");
-        let matchesWholeWord = [...metadataAsString.matchAll(regexWholeWord)];
-        let regexMatchNoWhitespace = new RegExp(`${searchTerm}`, "gi");
-        let matchesNoWhitespace = [...metadataAsString.matchAll(regexMatchNoWhitespace)];
+        // let regexWholeWord = new RegExp(`(\s|^|{|")+(${searchTerm})(\s|$|")+`, "gi");
+        // let matchesWholeWord = [...metadataAsString.matchAll(regexWholeWord)];
+        // let regexMatchNoWhitespace = new RegExp(`${searchTerm}`, "gi");
+        // let matchesNoWhitespace = [...metadataAsString.matchAll(regexMatchNoWhitespace)];
         let regexMatchSimple = new RegExp(`${searchTerm}`, "gi");
         let matchesSimple = [...metadataAsString.matchAll(regexMatchSimple)];
         let matchesIDscore = (mapObject.ID == searchTerm) ? 20 : 0;
-        let score = matchesIDscore + (matchesWholeWord.length * 3)  + (matchesNoWhitespace.length * 2) + matchesSimple.length;
+        let score = matchesIDscore + matchesSimple.length;
         if (score > 0) {
             let result = new SearchResult(mapObject, score);
             searchResults.push(result);

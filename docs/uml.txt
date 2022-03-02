@@ -1,0 +1,208 @@
+@startuml
+allow_mixing
+class shared.MapDataObjectDB {
++db: Map
++pointIDs: Array
++pathIDs: Array
++partIDs: Array
++areaIDs: Array
++complexAreaIDs: Array
++complexareaPartIDs: Array
++addMapObject(mapObject: shared.MapDataObject)
++getMapObjectsOfType(type: String)
++getMapObjectIDsOfType(type: String)
++{static}MapDataObjectDBFromObject(object: object)
++MergeWithOtherDB(otherDB: shared.MapDataObjectsDB)
++{static}getMapObjectType(mapObject: shared.MapDataObject)
+}
+
+shared.MapDataObjectDB o-- shared.MapDataObject
+shared.MapGridCache o-- shared.MapDataObject
+shared.MapGridCache o-- shared.MapDataObjectDB
+
+class shared.MapDataObject {
++ID: String
++metadata: object
+}
+
+shared.MapDataObject <|-- shared.MapPoint
+shared.MapDataObject <|-- shared.PathPart
+shared.MapDataObject <|-- shared.Path
+shared.MapDataObject <|-- shared.Area
+shared.MapDataObject <|-- shared.ComplexArea
+
+class shared.MapPoint {
++x: Number
++y: Number
++MapPoint(x: Number, y: Number, ?metadata: Object)
++get label()
++get metadataHTML()
++get locationType()
++{static}mapPointFromObject(object: object)
++distanceToPoint(pointB: shared.MapPoint)
+}
+
+class shared.PathPart {
++pointID: String
++nextPathPartIDs: Array
++PathPart(?pointID: String, ?nextPathPartIDs: Array, ?metadata: Object)
++{static}pathPartFromObject(object: object)
++{static}getPartByStepsAway(database: shared.MapDataObjectDB, pathPart: PathPart, steps: Int)
++connectingTo(IDofPointConnectingTo: String, database:shared. MapDataObjectDB)
++getPoint(database: shared.MapDataObjectDB)
++getNextPart(database: shared.MapDataObjectDB)
++getNextPoint(database: shared.MapDataObjectDB)
+}
+
+class shared.Path {
++startingPathPartID: String
++Path(startingPathPartID: String)
++{static}pathFromObject(object: object)
++getAllPointsOnPath(database: shared.MapDataObjectDB)
++copyPathContentsToDB(fromDB: shared.MapDataObjectDB, toDB: shared.MapDataObjectDB, ?currentPathPartID: String)
++{static}connectSequentialPoints(pathArray: Array, database: shared.MapDataObjectDB)
+}
+
+class shared.Area {
++mapPointIDs: Array
++data: object
++metadata: object
++Area(mapPointIDs: Array, ?data: object)
++getAllPoints(database: shared.MapDataObjectDB)
++{static}areaFromObject(object: object)
+}
+
+shared.Area <|-- shared.ComplexAreaPart
+
+class shared.ComplexArea {
++outerAreaID: String
++innerAreaIDs: Array
++ComplexArea(outerAreaID: String, innerAreaIDs: Array)
++{static}complexAreaFromObject(object: object)
+}
+
+class shared.ComplexAreaPart {
++outerOrInner: String
++ComplexAreaPart(mapPointIDs: Array, outerOrInner: string, ?data: object)
++{static}complexAreaPartFromObject(object: object)
+}
+
+class shared.MapGridCache {
++mapObjectsGridCache: Map
++gridSquareSize: Int
++database: shared.MapDataObjectDB
++MapGridCache(databae: shared.MapDataObjectDB)
++get(squareRef: String)
++xGridCoord(value: Number/shared.MapDataObject)
++yGridCoord(value: Number/shared.MapDataObject)
++getSquareRef(mapObj: shared.MapDataObject, ?xGridCoord: Number, yGridCoord: Number)
++getSquare(mapObj: shared.MapDataObject, ?xGridCoord: Number, yGridCoord: Number)
++cacheMapObjectToGrid(mapObj: shared.MapDataObject, ?xGridCoord: Number, yGridCoord: Number)
++cacheDataToGrid()
++getSurroundingSquareContent(mapObj: shared.MapDataObject, margin: Int)
++{static}coordsFromRef(ref)
++getSquareContentInBounds(x: Number, y: Number, width: Number, height: Number)
+}
+
+class CanvasState {
++ctx: CanvasRenderingContext2D
++canvas: HTMLCanvas
++canvasMouseDown: bool
++lastPageX: int
++lastPageY: int
++database: shared.MapDataObjectDB
++zoomLevel: Number
++xTranslation: Number
++yTranslation: Number
++touchDevice: bool
++testMapPoints: Array
++httpReq: XMLHttpRequest
++timeOfLastMapDataUpdate: Number
++mapDataUpdateOngoing: bool
++mapDataUpdateQueued: bool
++area: object
++strokeOn: bool
++pathTypeCountLast: int
++mapObjectsGridCache: shared.MapGridCache
++pointsToDraw: Array
++pathsToDraw: Array
++pointEvents: Array
++lastPinchDistance: Number
++pinchZoomInProgress: bool
++areasDrawn: Array
++labelsDrawn: Array
++CanvasState()
++mapInteractionEnd()
++mapInteractionBegin(pageX: Number, pageY: Number)
++mapDrag(pageX: Number, pageY: Number)
++mapTranslate(translateX: Number, translateY: Number)
++zoom(multiplier: Number)
++draw(?drawBlankCanvasOnly: bool)
+#testDraw()
++updateCanvasWidth()
++updateMapData(?forceUpdate: bool)
++mapDataReceiveFunc()
++getObjectsOnScreen()
++translateToCoords(x: Number, y: Number, ?zoom: bool)
++search(input: string)
++route(pointA: string, pointB: string)
++getPathTypes()
+}
+
+CanvasState o-- shared.MapDataObjectDB
+CanvasState o-- shared.MapGridCache
+shared.MapPoint <|-- MapPoint
+shared.Area <|-- Area
+shared.Path <|-- Path
+shared.PathPart <|-- PathPart
+shared.ComplexArea <|-- ComplexArea
+Area <|-- ComplexAreaPart
+
+class Path {
++data: object
++Path(?startingPathPartID: string, ?data: object)
++plotLine()
++plotPoints(?canvasState: CanvasState)
++getPathStyle()
++drawLabel()
+}
+
+class PathPart {
++PathPart(?pointID: string, ?nextPathPartIDs: Array, metadata: object)
++getPartByDistanceAway(database: shared.MapDataObjectDB, distance: Number)
+}
+
+class MapPoint {
++options: object
++MapPoint(x: Number, y: Number, ?metadata: object)
++get displayedX()
++get displayedY()
++drawPoint()
++{static}displayedDistanceBetweenPoints(a: MapPoint, b: MapPoint)
++{static}generatePointWithLabel(x: Number, y: Number, label: string)
+}
+
+class Area {
++constructor(mapPointIDs: Array, data: object)
++draw()
++plotPath(?reverse: bool)
++{static}finishFillArea()
++{static}isClockwise(pointIDs: Array)
++isClockwise()
++isAreaOnScreen()
++setAreaDrawStyle(canvasState: CanvasState)
+}
+
+class ComplexArea {
++ComplexArea(outerAreaID: string, innerAreaIDs: array)
++get outerArea()
++get innerAreas()
++draw()
+}
+class ComplexAreaPart {
++outerOrInner: string
++ComplexAreaPart(mapPointIDs: Array, outerOrInner: string, ?data: object)
++{static} complexAreaPartFromObject(object: object)
+}
+
+@enduml

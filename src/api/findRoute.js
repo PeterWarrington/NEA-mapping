@@ -37,7 +37,8 @@ module.exports.findRoute = (shared, req, res) => {
     let startingPoint = shared.database.db.get(startingPointID);
     let destinationPoint = shared.database.db.get(destinationPointID);
 
-    // Find point on highway nearest to starting point
+    // Find point on highway nearest to starting point. We only route on major
+    // highways to decrease nodes and therefore improve performance.
     let startingHighway = nearestHighwayPoint(startingPoint, shared);
     let destinationHighway = nearestHighwayPoint(destinationPoint, shared);
 
@@ -124,6 +125,7 @@ function dijkstras(startingHighway, destinationHighway, shared) {
         parentID = null;
     }
 
+    // Define sets
     let visitedNodes = new Map();
     let unvisitedNodes = new Map();
     let nodeProps = new Map();

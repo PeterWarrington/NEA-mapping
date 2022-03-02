@@ -1,0 +1,140 @@
+// This function is called when a API request to find a route between two points is
+// received.
+START FUNCTION findRoute(startingPointSearchTerm, destinationPointSearchTerm, database, gridCache)
+    // Conduct searches of the search terms to find their corresponding points
+    startingPointID = Search(startingPointSearchTerm, database)
+    destinationPointID = Search(destinationPointSearchTerm, database)
+
+    startingPoint = database.get(startingPointID)
+    destinationPoint = database.get(destinationPointID)
+
+    // Get the point nearest to found points that is on a highway 
+    // From which we can conduct routing. We limit the types of highways 
+    // that we can route using to decrease nodes and therefore 
+    // decrease processing time into reasonable bounds
+    startingPoint = nearestHighwayPoint(startingPoint, database, gridCache)
+    destinationPoint = nearestHighwayPoint(destinationPoint, database, gridCache)
+
+    // Begin dijkstra's now that we have our starting and destination points finalised
+    // Define sets
+    visitedNodes = new HashMap()
+    unvisitedNodes = new HashMap()
+
+    // Set distance of starting point to 0
+    startingPoint.distance = 0
+
+    allDatabasePaths =  database.getMapObjectsOfType("PATH")
+    FOR EACH path IN allDatabasePaths
+        IF isAcceptedHighway(path)
+            FOR EACH point IN path 
+                // Set default properties for all nodes at start of dijkstra
+                point.distance = Infinity
+                point.visited = false 
+                point.parentNode = None
+                unvisitedNodes[point.ID] = point
+            END FOR 
+        END IF 
+    END FOR
+
+    currentNode = startingPoint 
+
+    WHILE destinationPoint.visited == false DO 
+        // Get same points in same 10x10 square as currentNode
+        neighbours = []
+        neighbours += gridCache.get(currentNode.x, currentNode.y)
+        neighbours += getPathContainingPoint(currentNode).getPointAfter(currentNode)
+        neighbours += getPathContainingPoint(currentNode).getPointBefore(currentNode)
+        
+        // If all neighbours have Infinite distance, a route has not been 
+        // successfully found
+        IF EVERY neighbour IN neighbours HAS neighbour.distance == Infinity
+            return []
+        END IF
+
+        FOR EACH neighbour IN neighbours
+            // Calculate the distance to each neighbour, changing its recorded distance if this 
+            // calculated value is less than that recorded
+            tentativeDistance = currentNode.distance + distanceToPoint(neighbour)
+            IF tentativeDistance < neighbour.distance THEN
+                neighbour.distance = tentativeDistance
+            END IF
+            // Set current node as the parent of the neighbour to allow for 
+            // back-tracking
+            IF neighbour.ID != currentNode.ID THEN
+                neighbour.parentID = currentNode.ID 
+            END IF 
+        END FOR 
+
+        // We have now examined all neighbours of this node, mark it as visited 
+        currentNode.visited = true 
+        // Remove from unvisitedNodes so we don't visit it again 
+        unvisitedNodes.delete(currentNode.ID)
+        // Add to visited nodes so that we can back track later to find route 
+        visitedNodes[currentNode.ID] = currentNode
+
+        // Set next current node to unvisited node with smallest distance 
+        nextNode = EMPTY
+        FOR EACH node IN unvisitedNodes
+            IF nextNode == EMPTY OR node.distance < nextNode.distance THEN 
+                nextNode = node 
+            END IF 
+        END FOR
+
+        currentNode = nextNode
+    END WHILE
+
+    // The algorithm should have now found a route, now we back-track in order 
+    // to record this route 
+    currentNode = destinationPoint
+    fastestPath = []
+    WHILE currentNode != startingPoint
+        fastestPath += currentNode 
+        currentNode = visitedNodes[currentNode.parentID]
+    END WHILE 
+
+    return fastestPath.reverse()
+END FUNCTION
+
+START FUNCTION Search(searchTerm, database)
+    searchResults = [];
+    // Iterate through search index, adding a score for each map object 
+    // depending on its calculated relevance to search term.
+    FOR EACH mapObject IN this.searchIndex
+        searchConfidence = 0
+        // If the search term matches the exact ID of the object 
+        // Rise this to the top of the results with a high 
+        // search confidence
+        IF (mapObject.ID == searchTerm)
+            searchConfidence += 20;
+        ELSE
+            // Otherwise, score by the amount of times the term appears in the metadata
+            searchConfidence += OCCURRENCES OF searchTerm IN apObject.metadata;
+        END IF
+
+        // If the map object explicitly defines a place such as a town and 
+        // It already matches the search term, increase its score so 
+        // it shows up higher. This is because if someone searches for 
+        // something like "Cambridge", we want to return the City, not 
+        // some random location 15 miles away that happens to have 
+        // "Cambridge" in its name.
+        IF (mapObject.metadata DESCRIBES AS "place" AND searchConfidence > 0)
+            searchConfidence += 15
+        END IF
+
+        ADD [mapObject, searchConfidence] to searchResults
+    END FOR
+
+    SORT searchResults by searchConfidence DESCENDING // Show highest scoring results first
+
+    result = FIRST entry IN searchResults WHERE entry.mapObject OF TYPE "POINT" || "PATH"
+
+    IF result == EMPTY
+        THROW ERROR 
+    ELSE
+        IF result.mapObject OF TYPE "PATH"
+            result.mapObject = getPathMidpoint(result.mapObject)
+        END IF
+
+        RETURN result.mapObject.ID
+    END IF
+END FUNCTION

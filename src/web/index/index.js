@@ -1199,9 +1199,9 @@ shared.ComplexArea = ComplexArea;
 shared.ComplexAreaPart = ComplexAreaPart;
 
 /**
- * Function called at page load to test some points on canvas
+ * Function called at page load
  */
-function MapTest() {
+function main() {
     // Create canvas state
     canvasState = new CanvasState();
 
@@ -1295,8 +1295,8 @@ function areCoordsOnScreen(x, y) {
             && y > 0 && y < canvasState.canvas.height;
 }
 
-// Once the page has fully loaded, call MapTest
-document.addEventListener('DOMContentLoaded', MapTest, false);
+// Once the page has fully loaded, call main
+document.addEventListener('DOMContentLoaded', main, false);
 
 // Libraries
 

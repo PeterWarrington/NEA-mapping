@@ -3,7 +3,7 @@ module.exports = {
     OK: 200,
     ERROR: 500,
     // Strings
-    projectName: "Mapping test",
+    projectName: "Mapping project",
     // Bools
     CONSOLE_LOGGING_ONLY: true
 }

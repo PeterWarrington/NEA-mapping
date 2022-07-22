@@ -1,0 +1,211 @@
+2021-06-25:Peter Warrington::Initial plan
+2021-06-25:Peter Warrington::Fix plan checkboxes
+2021-06-25:Peter Warrington::Fix plan checkboxes again
+2021-07-02:Peter Warrington::Create static map testing site, able to display array of points
+2021-07-09:Peter Warrington::Add zoom foundations
+2021-07-09:Peter Warrington::Add zoom functionality
+2021-07-12:Peter Warrington::Add vs code launch.json
+2021-07-12:Peter Warrington::Add consts
+2021-07-12:Peter Warrington::Add comments to web/index.js
+2021-07-12:Peter Warrington::Add logging functionality
+2021-07-12:Peter Warrington::Amend gitignore
+2021-07-12:Peter Warrington::Fix request logging
+2021-07-12:Peter Warrington::Set vscode current dir in launch.json
+2021-07-12:Peter Warrington::Fix width of map canvas
+2021-07-12:Peter Warrington::Add map translation functionality
+2021-07-12:Peter Warrington::Prevent negative scaling
+2021-07-12:Peter Warrington::Dynamic resizing of map canvas
+2021-07-12:Peter Warrington::Move zoom into seperate function
+2021-07-16:Peter Warrington::Create project purpose document
+2021-07-16:Peter Warrington::Mutli-path support, CanvasState to store globals
+2021-09-16:Peter Warrington::Create initial project objectives
+2021-09-16:Peter Warrington::Delete README.md
+2021-09-16:Peter Warrington::Change objectives to check boxes
+2021-09-16:Peter Warrington::Objectives update
+2021-09-16:Peter Warrington::Objectives update
+2021-09-16:Peter Warrington::Objectives update
+2021-09-23:Peter Warrington::Seperate points and paths
+2021-09-23:Peter Warrington::Add favicon and footer
+2021-09-23:Peter Warrington::Add basic touch support
+2021-09-23:Peter Warrington::Full-screen map redesign
+2021-09-23:Peter Warrington::Add specific map translation function
+2021-09-23:Peter Warrington::disable phone zoom
+2021-09-23:Peter Warrington::Adjust text sizes in line with static demo
+2021-09-27:Peter Warrington::Move map structures to back/frontend shared file
+2021-09-27:Peter Warrington::Rename page title from "Map test page"
+2021-09-30:Peter Warrington::High level project structure
+2021-09-30:Peter Warrington::move shared structures into single shared object
+2021-09-30:Peter Warrington::Client access paths from backend
+2021-09-30:Peter Warrington::Add route finding to high level project diagram
+2021-09-30:Peter Warrington::Fix typo
+2021-10-15:Peter Warrington::Seperate drawing methods/properties from shared
+2021-10-15:Peter Warrington::Merge branch 'main' of https://github.com/PeterWarrington/NEA-mapping into main
+2021-10-18:Peter Warrington::Add commentst to index.js
+2021-10-18:Peter Warrington::Fix point options not being passed to client
+2021-11-13:Peter Warrington::Detail OSM conversion algorithm plan
+2021-11-13:Peter Warrington::Script to create project format map data from OSM
+2021-11-13:Peter Warrington::Add libraries neccessary for conversion from osm
+2021-11-13:Peter Warrington::Config VS code to be able to launch OSM conversion
+2021-11-13:Peter Warrington::Add ability to display OSM test points in browser
+2021-11-13:Peter Warrington::Gitignore output files
+2021-11-15:Peter Warrington::Create initial analysis report, containing TODOs
+2021-11-15:Peter Warrington::Begin graph theory research notes
+2021-11-18:Peter Warrington::Move analysis, implementation details, export pdf
+2021-11-18:Peter Warrington::Switch from 📍 point marker to •
+2021-11-18:Peter Warrington::Switch from 📍 point marker to •
+2021-11-18:Peter Warrington::Merge branch 'main' of https://github.com/PeterWarrington/NEA-mapping into main
+2021-11-18:Peter Warrington::Plot points over lines so visible
+2021-11-18:Peter Warrington::Update screenshot
+2021-11-18:Peter Warrington::Add pandoc generation example
+2021-11-18:Peter Warrington::Add newline to saved log messages
+2021-11-18:Peter Warrington::Add newline to saved log messages
+2021-11-18:Peter Warrington::Merge branch 'main' of https://github.com/PeterWarrington/NEA-mapping into main
+2021-11-19:Peter Warrington::Merge branch 'main' of https://github.com/PeterWarrington/NEA-mapping into main
+2021-11-19:Peter Warrington::Merge branch 'main' of https://github.com/PeterWarrington/NEA-mapping into main
+2021-11-19:Peter Warrington::Remove extra new lines from terminal logs
+2021-11-19:Peter Warrington::Create initial database strucutre file, map data
+2021-11-29:Peter Warrington::Write up initial database and object structure
+2021-12-02:Peter Warrington::Update database structure
+2021-12-02:Peter Warrington::Convert data structures to a normalised db format
+2021-12-06:Peter Warrington::Improve zoom control relative to translation
+2021-12-06:Peter Warrington::fix symbolic link
+2021-12-06:Peter Warrington::Revert "fix symbolic link"
+This reverts commit 14ee950e5f24c9bb6dcb67d40fb4aa331cfc56e8.
+2021-12-06:Peter Warrington::fix symbolic link
+2021-12-06:Peter Warrington::Number objectives
+2021-12-13:Peter Warrington::Amend OSM conversion algorithm detail
+2021-12-13:Peter Warrington::WIP OSM conversion changes undergoing testing
+2021-12-16:Peter Warrington::Improve convertFromOSM iteration
+2021-12-16:Peter Warrington::unsuccesful work on threading convertFromOSM
+2021-12-16:Peter Warrington::Make threaded convert from osm run for testing
+2021-12-16:Peter Warrington::Fix import
+2021-12-21:Peter Warrington::gitignore cpuprofile files
+2021-12-21:Peter Warrington::Add '--cacheRead' to convertOSM launch.json config
+2021-12-21:Peter Warrington::gitignore src/db.json
+2021-12-21:Peter Warrington::Decrease convertOSM time from 5 hours to 2 mins
+... and add metadata for convertOSM map objects
+2021-12-25:Peter Warrington::allocate more ram to server for db cacheing
+2021-12-25:Peter Warrington::colour code roads
+2021-12-25:Peter Warrington::GetDBfromQuery endpoint add
+2021-12-27:Peter Warrington::Only draw those points on screen
+2021-12-27:Peter Warrington::Test 'Only draw those points on screen'
+2021-12-27:Peter Warrington::Fix logging not being instantaneous
+2021-12-27:Peter Warrington::Log that server has started
+2022-01-01:Peter Warrington::Add getMapObjectIDsOfType to db implementation
+2022-01-01:Peter Warrington::Request specific map area from server
+2022-01-01:Peter Warrington::Fix dbFromQuery map area
+2022-01-01:Peter Warrington::Update web DB query
+2022-01-02:Peter Warrington::Add express dependency
+2022-01-02:Peter Warrington::Add .DS_store to gitignore
+2022-01-02:Peter Warrington::Change backslash to forwardslash in launch.json
+2022-01-06:Peter Warrington::Only request points that are not already on screen
+2022-01-06:Peter Warrington::Remove debug console.log
+2022-01-22:Peter Warrington::Revert timered map load, add debug_viewWholeMap
+2022-01-22:Peter Warrington::Add debug mode, with some debug logging
+In order to try and fix map area filtering
+2022-01-22:Peter Warrington::Fix map data dispaly issues
+Issue arrose from plotLine incorrectly reading from a global database
+object defined in MapTest that was only for intermediary conversion
+purposes.
+Made sure it read from canvasState.database instead to fix this.
+Also added database merging.
+2022-01-22:Peter Warrington::Fix reference to database not canvasState.database
+2022-01-22:Peter Warrington::Add map data update on map translation
+2022-01-22:Peter Warrington::Move http req receive data func into canvasState
+2022-01-22:Peter Warrington::Fix excludeAreas not working
+2022-01-24:Peter Warrington::Fix db returned when no highway or search filter
+2022-01-24:Peter Warrington::Add more roads colours and catch cache error
+2022-01-24:Peter Warrington::.gitignore changes
+2022-01-24:Peter Warrington::Apply borders to roads
+2022-01-28:Peter Warrington::Add Area map object definition
+2022-01-28:Peter Warrington::osmConvert: Convert water bodies
+2022-01-28:Peter Warrington::change requested highways
+2022-02-03:Peter Warrington::add metadata to areas
+2022-02-03:Peter Warrington::add basic code to return map areas on query
+2022-02-03:Peter Warrington::basic code to draw areas to screen
+2022-02-03:Peter Warrington::Filter areas by map area
+2022-02-04:Peter Warrington::only draw areas on screen to improve perfromance
+2022-02-04:Peter Warrington::add search button (no functionality)
+2022-02-11:Peter Warrington::Basic search API improve
+Should have more data on raw map before start searching
+2022-02-11:Peter Warrington::Seperate OSM and non-OSM metadata
+My philosophy is that metadata should be queried from the custom
+defined metadata keys, which sources from OSM metadata,
+but can still fall back on raw OSM metadata
+2022-02-11:Peter Warrington::Add river to accepted "highways"
+2022-02-11:Peter Warrington::"highway" -> "pathType"
+2022-02-12:Peter Warrington::convertFromOSM: convert land
+2022-02-12:Peter Warrington::allocate server more memory
+2022-02-12:Peter Warrington::custom JSON stringify to workaround data too large
+2022-02-12:Peter Warrington::dbFromQuery: Rtn whole Area not just Area onscreen
+2022-02-12:Peter Warrington::add ID and metadata in areaFromObject
+2022-02-12:Peter Warrington::draw areas on different layers, custom area style
+2022-02-12:Peter Warrington::fix colours for areas
+2022-02-12:Peter Warrington::add more cache error handling
+2022-02-15:Peter Warrington::Fix lat-lng projection to x-y by using mercator
+2022-02-15:Peter Warrington::specify URLs to request map data as vars
+2022-02-15:Peter Warrington::Only request map data when not already downloaded
+2022-02-15:Peter Warrington::Add load spinner, use multiplier based zoom level
+2022-02-15:Peter Warrington::Load whole paths at a time
+2022-02-17:Peter Warrington::optimise getMapObjectIDsOfType
+decreasing query time substantially (measured from ~5.5s -> ~3s)
+2022-02-17:Peter Warrington::optimise query by doing custom json conversion
+for some reason using a return string takes less time than using
+res.write(), not quite sure why
+2022-02-17:Peter Warrington::Test draw highway labels to screen
+2022-02-17:Peter Warrington::part: add getPoint(),getNextPart(),getNextPoint()
+2022-02-17:Peter Warrington::Add better label drawing (angles, spaced out)
+2022-02-17:Peter Warrington::sharedStructures: fix error during getNextPoint
+2022-02-17:Peter Warrington::Translate highway labels slightly
+2022-02-17:Peter Warrington::Actually examine width during query
+2022-02-17:Peter Warrington::Add another test url
+2022-02-18:Peter Warrington::server-side db: remove point display options
+Decreases db file size to ~54% original size
+decreases query load (~2.5s -> ~2.25s)
+2022-02-19:Peter Warrington::labels: Calculate angle using distance, add border
+Calculating angle using distance rather than points away, as points
+away is not a reliable indicator of distance
+2022-02-19:Peter Warrington::Define more area colours
+2022-02-21:Peter Warrington::Add complex area definition (revert)
+2022-02-21:Peter Warrington::Change paths displayed based on zoom level
+2022-02-21:Peter Warrington::Shared structs to one file, not use symbolic links
+2022-02-21:Peter Warrington::Load new roads despite exclude area
+2022-02-21:Peter Warrington::Fix water way colour
+2022-02-21:Peter Warrington::Fix road styles being overriden wrong
+2022-02-23:Peter Warrington::ComplexAreas made of ComplexAreaParts, add drawing
+2022-02-23:Peter Warrington::osmConvert: Extract complex areas
+2022-02-24:Peter Warrington::Proper complex area drawing
+2022-02-24:Peter Warrington::Improved performance and complex area drawing
+2022-02-24:Peter Warrington::Merge branch 'main' of https://github.com/PeterWarrington/NEA-mapping
+2022-02-25:Peter Warrington::Use map instead of object for grid
+2022-02-25:Peter Warrington::Use map for db
+2022-02-25:Peter Warrington::Code to write map areas images to file for clients
+2022-02-26:Peter Warrington::Draw full map (not labels) to map images
+2022-02-26:Peter Warrington: (origin/tile-code-broken, tile-code-broken):Not working map area tile code
+2022-02-26:Peter Warrington::git ignore left over map area images
+2022-02-26:Peter Warrington::Add search functionality
+2022-02-26:Peter Warrington::Also enable to search for paths
+2022-02-27:Peter Warrington::Improve search
+2022-02-27:Peter Warrington::Don't expand search results by default
+2022-02-27:Peter Warrington::Add pinch zoom mobile
+2022-02-27:Peter Warrington::Add all nodes to db.json for searching
+2022-02-27:Peter Warrington::Search improvements
+2022-02-27:Peter Warrington::Move grid square cache into shared structures
+This is to make path finding easier later, and just helps with
+organisation
+2022-02-28:Peter Warrington::Add code to find route via dijkstra
+2022-02-28:Peter Warrington::Better error handling
+2022-02-28:Peter Warrington::Improve search, route experience: status print etc
+2022-02-28:Peter Warrington::Increase bounds route finder finds nearby highway
+2022-02-28:Peter Warrington::Toggle to show search result metadata
+2022-02-28:Peter Warrington::Can use search terms to find route
+2022-02-28:Peter Warrington::Send route request on enter key
+2022-02-28:Peter Warrington::Rank places first in search results
+Helps with routing
+2022-02-28:Peter Warrington::Fix search scoring
+2022-02-28:Peter Warrington::Road names as route source/destination support
+2022-02-28:Peter Warrington::Improve db from query time, and queries made
+2022-02-28:Peter Warrington::Optimise route finding
+2022-02-28:Peter Warrington::Optimise search and therefore routing using index
+2022-03-01:Peter Warrington::Add title page for full doc
+2022-03-02:Peter Warrington: (HEAD -> main, origin/main, origin/HEAD):Work on documentation

@@ -17,42 +17,51 @@ var debug_searchFilterCount = 0;
 
     let startTime = Date.now();
 
-    // Get map db for area
-    var areaDB = filterByMapArea(req, res, shared.database, shared);
+    if (req.query.mapTilesOnly) {
+        let tiles = shared.database.getMapObjectsOfType("TILE");
+        for (let i = 0; i < tiles.length; i++) {
+            const tile = tiles[i];
+            databaseToReturn.addMapObject(tile);
+        }
+    } else {
+        // Get map db for area
+        var areaDB = filterByMapArea(req, res, shared.database, shared);
 
-    // Filter paths
-    paths = [];
-    rootDBpaths = areaDB.getMapObjectsOfType("PATH");
-    for (let i = 0; i < rootDBpaths.length; i++) {
-        const path = rootDBpaths[i];
-        var meetsCriteria = true;
+        // Filter paths
+        paths = [];
+        rootDBpaths = areaDB.getMapObjectsOfType("PATH");
+        for (let i = 0; i < rootDBpaths.length; i++) {
+            const path = rootDBpaths[i];
+            var meetsCriteria = true;
 
-        // These filter function calls return undefined if unsuccesful, where bool && undefined == undefined
-        // Filter by pathTypes
-        meetsCriteria = meetsCriteria && filterByPathType(req, res, path, shared);
+            // These filter function calls return undefined if unsuccesful, where bool && undefined == undefined
+            // Filter by pathTypes
+            meetsCriteria = meetsCriteria && filterByPathType(req, res, path, shared);
 
-        if (meetsCriteria) {
-            paths.push(path)
-        } else if (meetsCriteria == undefined) return;
-    }
+            if (meetsCriteria) {
+                paths.push(path)
+            } else if (meetsCriteria == undefined) return;
+        }
 
-    paths.forEach(path => {
-        path.copyPathContentsToDB(areaDB, databaseToReturn);
-        databaseToReturn.addMapObject(path);
-    });
-    
-    areaDB.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]).forEach(area => {
-        databaseToReturn.addMapObject(area);
-        area.mapPointIDs.forEach(mapPointID => {
-            let point = shared.database.db.get(mapPointID);
-            if (point != undefined)
-            databaseToReturn.addMapObject(point);
+        paths.forEach(path => {
+            path.copyPathContentsToDB(areaDB, databaseToReturn);
+            databaseToReturn.addMapObject(path);
         });
-    });
+        
+        areaDB.getMapObjectsOfType(["AREA", "COMPLEX-AREA-PART"]).forEach(area => {
+            databaseToReturn.addMapObject(area);
+            area.mapPointIDs.forEach(mapPointID => {
+                let point = shared.database.db.get(mapPointID);
+                if (point != undefined)
+                databaseToReturn.addMapObject(point);
+            });
+        });
 
-    areaDB.getMapObjectsOfType("COMPLEX-AREA").forEach(area => {
-        databaseToReturn.addMapObject(area);
-    });
+        areaDB.getMapObjectsOfType("COMPLEX-AREA").forEach(area => {
+            databaseToReturn.addMapObject(area);
+        });
+    };
+
     let returnString = "";
 
     let dbKeys = Array.from(databaseToReturn.db.keys());

@@ -34,6 +34,7 @@ getData(() => {
 
     app.use(express.static('web', options));
     app.use(express.static('shared', options));
+    app.use('/mapAreaImages', express.static('mapAreaImages'))
 
     // Error handler
     app.use((err, req, res, next) => {
@@ -53,6 +54,9 @@ function getData(callback) {
     // Convert from JSON to MapDataObjectDB
     let simpleDB = JSON.parse(data);
     shared.database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
+
+    // Add map tiles to DB
+    require("./api/getMapTilesList.js").mapTilesToDb(shared, shared.database);
 
     // Cache database data to grid
     shared.mapObjectsGridCache = new shared.MapGridCache(shared.database);

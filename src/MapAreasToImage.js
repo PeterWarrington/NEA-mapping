@@ -1,12 +1,17 @@
-canvasState = undefined;
+const canvasLib = require('canvas');
+const fs = require('fs');
+const shared = require('./shared/sharedStructures.js').shared;
+
 debug_displayAreasDrawn = false;
 debug_drawAllHighwayLabelsTest = true;
 debug_drawHighwayLabels_smart = true;
 debug_testDB = false;
-mapTilesOnly = true;
-globalPoint=null;
 
-class CanvasState {
+/**
+ * Basic version of the index.js CanvasState, just containing properties
+ * needed to draw areas to screen.
+ */
+ class CanvasState {
     /** The {CanvasRenderingContext2D} that is used on the canvas */
     ctx
     /** The canvas element that displays the map */
@@ -54,14 +59,6 @@ class CanvasState {
     lastPinchDistance = 0;
     /** Indicates wether a pinch zoom is in progress */
     pinchZoomInProgress = false;
-    /** Count of number of map data updates */
-    mapDataUpdateCount = 0;
-    /** Objects on screen detection optimisation flag
-     * (This optimisation has a performance impact so is only suitable for use where it
-     * is slower without the screen detection optimisation - e.g. where there is a lot being
-     * drawn to screen. It is therefore not suitable where just map tiles are being drawn to screen.)
-     */
-    onScreenOptimisationEnabled = !mapTilesOnly;
 
     /** Stores details of areas drawn to screen */
     areasDrawn = [];
@@ -69,124 +66,8 @@ class CanvasState {
     labelsDrawn = [];
 
     constructor () {
-        this.canvas = document.getElementById("mapCanvas");
-        this.ctx = this.canvas.getContext('2d');
-        this.canvas.style.cursor = "default";
-
-        // Zoom functionality
-        document.getElementById("zoom-in").onclick = (event) => {
-            this.zoom(1);
-        };
-
-        document.getElementById("zoom-out").onclick = (event) => {
-            this.zoom(-1);
-        };
-
-        // Translation functionality
-        this.canvas.ontouchstart = (event) => {
-            this.touchDevice = true;
-            this.mapInteractionBegin(event.targetTouches[0].pageX, event.targetTouches[0].pageY);
-        }
-
-        this.canvas.onmousedown = (event) => {
-            if (!this.touchDevice) {
-                this.mapInteractionBegin(event.pageX, event.pageY);
-            }
-        }
-        
-        this.canvas.ontouchend = () => this.mapInteractionEnd();
-        this.canvas.onmouseup = () => this.mapInteractionEnd();
-
-        this.canvas.ontouchmove = (event) => {
-            if (event.targetTouches.length == 1 && !this.pinchZoomInProgress)
-                this.mapDrag(event.targetTouches[0].pageX, event.targetTouches[0].pageY);
-        }
-
-        this.canvas.onmousemove = (event) => {
-            if (this.canvasMouseDown && !this.pinchZoomInProgress)
-                this.mapDrag(event.pageX, event.pageY);
-        }
-
-        this.canvas.onmouseenter = (event) => {
-            this.canvas.style.cursor = "grab";
-        }
-
-        this.canvas.onmouseleave = (event) => {
-            this.canvas.style.cursor = "default";
-        }
-
-        // Code to support pinch zoom based on https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events/Pinch_zoom_gestures by Mozilla Contributors, licensed under CC-BY-SA 2.5
-        this.canvas.onpointerdown = (event) => {
-            canvasState.pointEvents.push(event)
-        }
-
-        this.canvas.onpointermove = (event) => {
-            // Find this event in the cache and update its record with this event
-            for (var i = 0; i < canvasState.pointEvents.length; i++) {
-                if (event.pointerId == canvasState.pointEvents[i].pointerId) {
-                    canvasState.pointEvents[i] = event;
-                    break;
-                }
-            }
-
-            // If 2 fingers zooming
-            if (canvasState.pointEvents.length == 2) {
-                canvasState.pinchZoomInProgress = true;
-                var curDiff = Math.abs(canvasState.pointEvents[0].clientX - canvasState.pointEvents[1].clientX);
-
-                if (this.lastPinchDistance != 0) {
-                    canvasState.zoomLevel *= (curDiff/canvasState.lastPinchDistance);
-                    console.log((curDiff/canvasState.lastPinchDistance));
-                    canvasState.draw();
-                }
-
-                canvasState.lastPinchDistance = curDiff;
-            }
-        }
-
-        this.canvas.onpointerup = (eventA) => {
-            canvasState.pointEvents = canvasState.pointEvents.filter(eventB => eventA.pointerId != eventB.pointerId);
-            if (canvasState.pointEvents.length == 0) {
-                canvasState.updateMapData();
-                canvasState.pinchZoomInProgress = false;
-            };
-        }
-
-        // Redraw on window resize to make sure canvas is right size
-        window.addEventListener('resize', () => this.draw());
-
         // Set up map grid cache
         this.mapObjectsGridCache = new shared.MapGridCache(this.database)
-    }
-
-    mapInteractionEnd() {
-        this.lastPageX = -1;
-        this.lastPageY = -1;
-        this.canvasMouseDown = false;
-        if (this.canvas.style.cursor == "grabbing")
-        this.canvas.style.cursor = "grab";
-
-        this.updateMapData();
-    }
-
-    mapInteractionBegin(pageX, pageY) {
-        this.lastPageX = pageX;
-        this.lastPageY = pageY;
-        this.canvasMouseDown = true;
-        if (this.canvas.style.cursor == "grab")
-            this.canvas.style.cursor = "grabbing";
-    }
-
-    mapDrag(pageX, pageY) {
-        var relativeMouseX = pageX - this.lastPageX;
-        var relativeMouseY = pageY - this.lastPageY;
-
-        this.mapTranslate(relativeMouseX, relativeMouseY);
-
-        this.lastPageX = pageX;
-        this.lastPageY = pageY;
-
-        this.draw();
     }
 
     mapTranslate(translateX, translateY) {
@@ -205,16 +86,12 @@ class CanvasState {
         this.zoomLevel *= zoomChange;
 
         this.draw();
-        this.updateMapData();
     }
 
     /**
      * Calls functions to draw path to screen
      */
     draw(drawBlankCanvasOnly=false) {
-        // Update canvas width
-        this.updateCanvasWidth();
-    
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     
@@ -224,29 +101,10 @@ class CanvasState {
 
         if (drawBlankCanvasOnly) return;
 
-        // Draw map tiles
-        var tileZoomLevel = this.getRoundedZoomLevel()
-
-        let tiles = canvasState.database.getMapObjectsOfType("TILE").filter((tile) =>
-            tile.zoom == tileZoomLevel && (
-                tile.displayedX > -1000 && tile.displayedX < canvasState.canvas.width &&
-                tile.displayedY > -1000 && tile.displayedY < canvasState.canvas.height
-            )
-        );
-
-        for (let i = 0; i < tiles.length; i++) {
-            const tile = tiles[i];
-            tile.draw();
-        }
-
-        // Start areas stuff
-        let objectsOnScreen = {};
-        if (canvasState.onScreenOptimisationEnabled) objectsOnScreen = this.getObjectsOnScreen();
+        let objectsOnScreen = this.getObjectsOnScreen();
 
         let topLayerAreas = [];
-        let areas;
-        if (canvasState.onScreenOptimisationEnabled) areas = objectsOnScreen["AREA"];
-        else areas = this.database.getMapObjectsOfType("AREA");
+        let areas = objectsOnScreen["AREA"];
         
         // Draw lower layer areas, adding lower layer areas to topLayerAreas to draw later
         if (areas != undefined)
@@ -263,9 +121,7 @@ class CanvasState {
             area.draw(this);
         }
 
-        let complexAreas;
-        if (canvasState.onScreenOptimisationEnabled) complexAreas = objectsOnScreen["COMPLEX-AREA"];
-        else complexAreas = this.database.getMapObjectsOfType("COMPLEX-AREA");
+        let complexAreas = objectsOnScreen["COMPLEX-AREA"];
 
         if (complexAreas != undefined)
         for (let i = 0; i < complexAreas.length; i++) {
@@ -279,10 +135,7 @@ class CanvasState {
             return;
         }
 
-        let paths;
-        if (canvasState.onScreenOptimisationEnabled) paths = objectsOnScreen["PATH"];
-        else paths = this.database.getMapObjectsOfType("PATH");
-
+        let paths = objectsOnScreen["PATH"];
         if (paths != undefined)
         for (let i = 0; i < paths.length; i++) {
             let path = paths[i];
@@ -316,133 +169,6 @@ class CanvasState {
         this.testMapPoints.forEach(mapPoint => {
             mapPoint.drawPoint(this);
         });
-    }
-
-    /**
-     * Gets the rounded zoom level for use with map tiles.
-     */
-    getRoundedZoomLevel() {
-        let tileZoomLevels = [0.05, 0.1, 0.2, 0.5, 1, 2, 3];
-
-        var tileZoomLevel = tileZoomLevels.reduce(function(prev, curr) { // https://stackoverflow.com/a/19277804 (CC BY-SA 3.0)
-            return (Math.abs(curr - canvasState.zoomLevel) < Math.abs(prev - canvasState.zoomLevel) ? curr : prev);
-        });
-
-        return tileZoomLevel;
-    }
-
-    /**
-     * Updates the width of the canvas displayed on screen
-     */
-    updateCanvasWidth() {
-        // Resize to 100% (html decleration does not work)
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
-    }
-
-    updateMapData(forceUpdate=false) {
-        // Do not update map data if we only want map tiles and all map tile info has already been downloaded
-        if (mapTilesOnly && this.mapDataUpdateCount > 0)
-            return;
-
-        this.mapDataUpdateCount++;
-
-        // Assemble types of paths to query based on zoom level
-        let pathTypes = this.getPathTypes();
-        if (pathTypes.length > this.pathTypeCountLast) {
-            this.pathTypeCountLast = pathTypes.length;
-            // Force an update as more path types have been requested
-            forceUpdate = true;
-        }
-
-        // Only continue if forceUpdate flag is set, or more than 500ms since last map data update and mapDataUpdateOngoing flag is not set
-        if (!forceUpdate && (this.mapDataUpdateOngoing || Date.now() - this.timeOfLastMapDataUpdate < 500)) {
-            if (!this.mapDataUpdateQueued) {
-                // Try again in 1s time
-                setTimeout(() => {
-                    this.mapDataUpdateQueued = false;
-                    this.updateMapData();
-                }, 1000);
-                this.mapDataUpdateQueued = true;
-            }
-            return;
-        }
-
-        this.mapDataUpdateOngoing = true;
-
-        canvasState.area = {
-            x: -canvasState.xTranslation - 500,
-            y: -canvasState.yTranslation - 500,
-            height: (getAbsoluteHeight(canvasState.canvas)/canvasState.zoomLevel) + 500,
-            width: (getAbsoluteWidth(canvasState.canvas)/canvasState.zoomLevel) + 500,
-            pathTypeCount: pathTypes.length
-        };
-
-        // Check map area hasn't already been drawn
-        let hasBeenDrawn = false;
-        for (let i = 0; i < this.areasDrawn.length; i++) {
-            const areaDrawn = this.areasDrawn[i];
-            hasBeenDrawn = hasBeenDrawn || (areaDrawn.pathTypeCount >= canvasState.area.pathTypeCount &&
-                (canvasState.area.x >= areaDrawn.x && canvasState.area.x + canvasState.area.width <= areaDrawn.x + areaDrawn.width 
-                    && canvasState.area.y >= areaDrawn.y && canvasState.area.y + canvasState.area.height <= areaDrawn.y + areaDrawn.height))
-            if (hasBeenDrawn) break;
-        }
-
-        if (forceUpdate || !hasBeenDrawn) {
-            // Make request
-            let testingDBurl = `/api/GetTestDB`;
-            let wholeDBurl = `/api/GetDBfromFile`;
-            let testURLnoMapArea = `/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&&noMapAreaFilter=true`;
-            let testURLlimitedArea = `/api/GetDBfromQuery?pathTypes=[%22motorway%22,%22primary%22,%22trunk%22,%22primary_link%22,%22trunk_link%22,%22river%22]&x=48.1699954728&y=9784.703958946639&height=1317.4001900055023&width=1271.3921765555658&excludeAreas=[]`;
-            let mapTilesOnlyUrl = `/api/GetDBfromQuery?mapTilesOnly=true`
-            let normalURL = `/api/GetDBfromQuery?pathTypes=${JSON.stringify(pathTypes)}&area=${JSON.stringify(canvasState.area)}`;
-            
-            let currentURL;
-            if (debug_testDB) currentURL = testingDBurl;
-            if (mapTilesOnlyUrl) currentURL = mapTilesOnlyUrl
-            else currentURL = normalURL;
-            
-            this.httpReq.open("GET", currentURL);
-            this.httpReq.send();
-
-            // Display loading indicator
-            document.getElementById("loading-indicator-container").style.display = "block";
-        } else {
-            this.mapDataUpdateOngoing = false;
-        }
-    }
-
-    mapDataReceiveFunc = () => {
-        // Request returns db as uninstanciated object
-        // we need to convert this
-        var simpleDB = JSON.parse(canvasState.httpReq.response);
-
-        if(shared.debug_on) 
-            console.log(`Received JSON has ${Object.keys(simpleDB.db).length} items.`)
-
-        var database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
-
-        canvasState.database.mergeWithOtherDB(database);
-
-        this.mapObjectsGridCache.cacheDataToGrid();
-
-        if(shared.debug_on) 
-            console.log(`Computed database currently has ${canvasState.database.getMapObjectsOfType("PATH").length} paths.`);
-
-        // Draw
-        canvasState.draw();
-
-        // Add area drawn to list of areas drawn
-        canvasState.areasDrawn.push(Object.assign({}, canvasState.area));
-
-        // Update time since last map data update
-        canvasState.timeOfLastMapDataUpdate = Date.now();
-        
-        // Update map data update ongoing flag
-        canvasState.mapDataUpdateOngoing = false;
-
-        // Hide loading indicator
-        document.getElementById("loading-indicator-container").style.display = "none";
     }
 
     /**
@@ -499,162 +225,6 @@ class CanvasState {
         canvasState.yTranslation = -y + (200 / canvasState.zoomLevel);
 
         canvasState.draw();
-    }
-
-    /**
-     * Initiates a search
-     * @param {string} input search term
-     */
-    search = (input) => {
-        var resultsAccordion = document.getElementById("results-accordion");
-
-        resultsAccordion.innerHTML = "<strong class='text-muted'>Searching...</strong>";
-        document.getElementById("results-title").innerText = `Search results for "${input}"`;
-
-        // Make search results draggable
-        $("#results").draggable({cancel: "#results-accordion"});
-
-        // Show results dialog
-        let resultsEl = document.getElementById("results");
-        (new bootstrap.Toast(resultsEl)).show();
-
-        let http = new XMLHttpRequest();
-        http.addEventListener("load", () => {
-            if (http.responseText.indexOf("error") == 0) {
-                resultsAccordion.innerHTML = "<strong class='text-muted'>An error occurred :-(</strong>";
-                return;
-            };
-
-            try {
-                let responseArray = JSON.parse(http.responseText);
-
-                canvasState.pointsToDraw = [];
-
-                // Display search results
-                let points = [];
-                for (let i = 0; i < responseArray.length; i++) {
-                    const mapObject = responseArray[i].mapObject;
-                    let point;
-
-                    if (mapObject.ID.indexOf("POINT") == 0)
-                        point = MapPoint.mapPointFromObject(mapObject);
-                    else if (mapObject.ID.indexOf("PATH") == 0) {
-                        let path = Path.pathFromObject(mapObject);
-                        path.midpoint = MapPoint.mapPointFromObject(mapObject.midpoint);
-                        point = path.midpoint;
-                        // Add metadata of path to point
-                        point.metadata.path = path.metadata;
-                    }
-
-                    point.searchScore = responseArray[i].score;
-
-                    // // If no label available, don't display if search confidence is below % of max
-                    // if (points.length > 0 && point.label == point.ID && point.searchScore < points[0].searchScore * 0.6) continue;
-
-                    points.push(point);
-                }
-
-                resultsAccordion.innerHTML = "";
-
-                if (points.length == 0) resultsAccordion.innerHTML = "<strong class='text-muted'>No results found :-(</strong>";
-                else resultsAccordion.innerHTML = "";
-
-                for (let i = 0; i < points.length; i++) {
-                    const point = points[i];
-
-                    let pointToDraw = MapPoint.generatePointWithLabel(point.x, point.y, `${i+1}`);
-
-                    if (!canvasState.pointsToDraw.includes(pointToDraw));
-                        canvasState.pointsToDraw.push(pointToDraw);
-
-                    resultsAccordion.innerHTML += `
-                        <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse${i}">
-                            <div>📌${i+1}: ${point.label} <span class="fw-lighter">&nbsp;(${point.locationType})</span></div>
-                            </button>
-                        </h2>
-                        <div id="collapse${i}" class="accordion-collapse collapse">
-                            <div class="accordion-body">
-                            <a href="javascript:canvasState.translateToCoords(${point.x},${point.y})">
-                            <strong>Go to point.</strong></a>
-                            <br/><strong>Search confidence:</strong> ${point.searchScore}
-                            <br/><strong>ID:</strong> ${point.ID}
-                            <br/><strong>Is path:</strong> ${point.metadata.path != undefined}
-                            <br/>
-                            <a class="link-secondary" data-bs-toggle="collapse" href="#metadata-collapse-${i}" role="button">
-                                Show/hide additional metadata.
-                            </a>
-                            <div class="collapse" id="metadata-collapse-${i}">
-                                ${point.metadataHTML}
-                            </div>
-                            </div>
-                        </div>
-                        </div>`;
-
-                    if (point.metadata.path != undefined) point.metadata.path = undefined;
-                }
-
-                if (points.length > 0) {
-                    let bounds = shared.getBoundsOfPointArray(points);
-                    canvasState.zoomLevel = bounds.zoomLevel;
-                    canvasState.translateToCoords(bounds.minX, bounds.minY, false);
-                    canvasState.draw();
-                    canvasState.updateMapData();
-                }
-            } catch (err) {console.log(err)}
-        });
-        http.open("GET", `/api/PointSearch?searchTerm="${input}"`);
-        http.send();
-    }
-
-    route(pointA, pointB) {
-        let http = new XMLHttpRequest();
-        http.addEventListener("load", () => {
-            if (http.responseText.indexOf("error") == 0 || http.responseText == "[]") {
-                let errorText = "An error occurred.";
-                if (http.responseText == "error: input")
-                    errorText = "Could not find points.";
-                if (http.responseText.indexOf("error: highway point undefined.") == 0)
-                    errorText = "One or more of the points is not near enough to an accepted highway to be able to find a route.";
-                if (http.responseText == "[]")
-                    errorText = "Unable to find route.";
-
-                document.getElementById("route-status").innerText = errorText + " :-(";
-                return
-            };
-
-            let responseArray = JSON.parse(http.responseText);
-
-            let pointArray = responseArray.map(simplePoint => shared.MapPoint.mapPointFromObject(simplePoint));
-
-            let path = Path.connectSequentialPoints(pointArray, canvasState.database);
-            path.metadata.pathType = {};
-            path.metadata.pathType["second_level_descriptor"] = "returned_route";
-            canvasState.pathsToDraw = [path];
-
-            let bounds = shared.getBoundsOfPointArray(path.getAllPointsOnPath(canvasState.database));
-            canvasState.zoomLevel = bounds.zoomLevel;
-            canvasState.translateToCoords(bounds.minX, bounds.minY, false);
-
-            let pointA = MapPoint.generatePointWithLabel(pointArray[0].x, pointArray[0].y, `A`);
-            let pointB = MapPoint.generatePointWithLabel(pointArray[pointArray.length - 1].x, pointArray[pointArray.length - 1].y, `B`);
-
-            canvasState.pointsToDraw = [];
-
-            if (!canvasState.pointsToDraw.includes(pointA));
-                canvasState.pointsToDraw.push(pointA);
-            if (!canvasState.pointsToDraw.includes(pointB));
-                canvasState.pointsToDraw.push(pointB);
-
-            canvasState.updateMapData();
-            canvasState.draw();
-
-            document.getElementById("route-status").innerText = "Route found!";
-        });
-        http.open("GET", `/api/FindRoute?startingPointTerm="${pointA}"&destinationPointTerm="${pointB}"`);
-        http.send();
-        document.getElementById("route-status").innerText = "Finding...";
     }
 
     /**
@@ -1112,16 +682,6 @@ class Area extends shared.Area {
         return Area.isClockwise(this.mapPointIDs);
     }
 
-    isAreaOnScreen() {
-        let isApointOnScreen = false;
-        for (let i = 0; !isApointOnScreen && i < this.mapPointIDs.length; i++) {
-            const mapPoint = canvasState.database.db.get(this.mapPointIDs[i]);
-            if (!isApointOnScreen) isApointOnScreen = areCoordsOnScreen(mapPoint.displayedX, mapPoint.displayedY, canvasState);
-        }
-
-        return isApointOnScreen;
-    }
-
     /**
      * Sets properties of how an area should be drawn to screen (such as fill colour) 
      * to be called before drawing this area.
@@ -1252,168 +812,73 @@ shared.ComplexArea = ComplexArea;
 
 shared.ComplexAreaPart = ComplexAreaPart;
 
-class Tile extends shared.Tile {
-    tileImage
-    drawCount = 0
+// Initialize CanvasState
+canvasState = new CanvasState();
 
-    /** Gets the x position relative to the canvas */
-    get displayedX() {
-        return (parseFloat(this.x) + canvasState.xTranslation) * 1.5 * canvasState.zoomLevel;
-    }
+// Read file
+console.log("Reading from db.json...");
+data = fs.readFileSync('db.json', 'utf8');
 
-    /** Gets the y position relative to the canvas */
-    get displayedY() {
-        return (parseFloat(this.y) + canvasState.yTranslation) * canvasState.zoomLevel;
-    }
+// Convert from JSON to MapDataObjectDB
+let simpleDB = JSON.parse(data);
+canvasState.database = shared.MapDataObjectDB.MapDataObjectDBFromObject(simpleDB);
 
-    constructor(x, y, zoom) {
-        super(x, y, zoom);
-        this.tileImage = new Image()
-    }
+console.log("DB read complete.");
 
-    draw() {
-        if (this.drawCount == 0)
-            this.tileImage.src = `/mapAreaImages/${this.x}x${this.y}_${this.zoom}x.png`;
+// Update map grid cache so that getObjectsOnScreen() works
+canvasState.mapObjectsGridCache.database = canvasState.database
+canvasState.mapObjectsGridCache.cacheDataToGrid();
 
-        this.drawCount++;
+// Set up canvas on canvasState
+let squareLength = 1000;
+canvasState.canvas = canvasLib.createCanvas(squareLength, squareLength);
+canvasState.ctx = canvasState.canvas.getContext('2d');
 
-        this.tileImage.onload = () => {
-            if (canvasState.getRoundedZoomLevel() == this.zoom) {
-                canvasState.ctx.drawImage(this.tileImage, this.displayedX, this.displayedY, 1000/(this.zoom/canvasState.zoomLevel), 1000/(this.zoom/canvasState.zoomLevel));
+// Find maximum and minimum coords in database to set canvas bounds
+var minY;
+var minX;
+var maxY;
+var maxX;
 
-                // Draw points and paths to draw (need to be drawn on top of tiles)
-                canvasState.pointsToDraw.forEach(point => point.drawPoint());
-                canvasState.pathsToDraw.forEach(path => path.plotLine());
+let points = canvasState.database.getMapObjectsOfType("POINT");
+for (let i = 0; i < points.length; i++) {
+    let point = points[i];
+    if (minY == undefined || point.y < minY) {minY = point.y}
+    if (minX == undefined || point.x < minX) {minX = point.x}
+    if (maxY == undefined || point.y > maxY) {maxY = point.y}
+    if (maxX == undefined || point.x > maxX) {maxX = point.x}
+}
+
+console.log(`minx: ${minX} miny: ${minY} maxx: ${maxX} maxy: ${maxY}`)
+
+let zoomLevels = [0.05, 0.1, 0.2, 0.5, 1, 2, 3];
+
+for (let i = 0; i < zoomLevels.length; i++) {
+    canvasState.zoomLevel = zoomLevels[i];
+
+    console.log(`zoomLevel: ${canvasState.zoomLevel}`);
+
+    canvasState.yTranslation = -minY;
+    
+    while (-canvasState.yTranslation < maxY) {
+        canvasState.xTranslation = -minX;
+        while (-canvasState.xTranslation < maxX) {
+            console.log(`xTranslation: ${canvasState.xTranslation}`);
+
+            if (canvasState.getObjectsOnScreen()["AREA"] != undefined) {
+                // Draw objects
+                canvasState.draw()
+                
+                // Write canvas to png
+                let fileName = `./mapAreaImages/${-canvasState.xTranslation}x${-canvasState.yTranslation}_${canvasState.zoomLevel}x.png`;
+                let buffer = canvasState.canvas.toBuffer();
+                fs.writeFileSync(fileName, buffer);
+                console.log(`Canvas has been written to "${fileName}".`);
             }
-        };
-
-        this.tileImage.onload();
-    }
-}
-
-shared.Tile = Tile;
-
-/**
- * Function called at page load
- */
-function main() {
-    // Create canvas state
-    canvasState = new CanvasState();
-
-    // Set up search event listener
-    document.getElementById("search_input").addEventListener("keypress", function (e) {
-        if (e.key == "Enter") {
-            canvasState.search(document.getElementById("search_input").value);
+            canvasState.xTranslation -= squareLength / (canvasState.zoomLevel * 1.5);
         }
-    });
+        console.log(`yTranslation: ${canvasState.yTranslation}`);
 
-    // Import test nodes
-    // Translate graph so does not overlap header
-    canvasState.mapTranslate(15, getAbsoluteHeight(document.getElementById("header")) + 15);
-
-    // Drawing test overrides
-    canvasState.xTranslation =  2292.886051499995;
-    canvasState.yTranslation = -7349.380475070653;
-    canvasState.zoomLevel =  0.5;
-
-    if (debug_testDB == true) debug_func_viewOrigin();
-
-    // Load correct canvas width
-    canvasState.updateCanvasWidth();
-
-    // Display blank canvas
-    canvasState.draw(true);
-
-    // Get test db from server
-    canvasState.httpReq = new XMLHttpRequest();
-    canvasState.httpReq.addEventListener("load", canvasState.mapDataReceiveFunc);
-
-    // if(shared.debug_on) debug_viewWholeMap(canvasState);
-
-    canvasState.updateMapData();
-
-    routeSubmitFunction = () => {
-        let pointA_input = document.getElementById("pointA_input").value;
-        let pointB_input = document.getElementById("pointB_input").value;
-        canvasState.route(pointA_input, pointB_input);
+        canvasState.yTranslation -= squareLength / canvasState.zoomLevel;
     }
-
-    document.getElementById("pointB_input").addEventListener("keypress", function (e) {
-        if (e.key == "Enter") {
-            routeSubmitFunction();
-        }
-    });
-
-    $("#route-search-toast").draggable({cancel: "#route-search-body"});
-    document.getElementById("route-ui-show-btn").onclick = () =>  (new bootstrap.Toast($("#route-search-toast"))).show();
-    document.getElementById("route-submit-btn").onclick = () => {routeSubmitFunction()};
-}
-
-/**
- * Function that can be called for debug purposes to view the whole map.
- * Useful to verify that map data is being loaded correctly.
- * @param {*} canvasState 
- */
-function debug_viewWholeMap(canvasState) {
-    canvasState.xTranslation = -4021.6666666666615;
-    canvasState.yTranslation = -2433.8333333333303;
-    canvasState.zoomLevel = 0.10000000000000014;
-}
-
-function debug_func_viewOrigin() {
-    canvasState.xTranslation =  0;
-    canvasState.yTranslation = 0;
-    canvasState.zoomLevel =  1;
-    canvasState.draw()
-}
-
-/**
- * Display canvasState.areasDrawn on map for debug purposes.
- */
-function debug_displayAreasDrawnFunc() {
-    canvasState.areasDrawn.forEach(areaDrawn => {
-        canvasState.ctx.beginPath();
-        canvasState.ctx.lineWidth = "6";
-        canvasState.ctx.strokeStyle = "red";
-        canvasState.ctx.rect(
-            (areaDrawn.x + canvasState.xTranslation) * canvasState.zoomLevel, 
-            (areaDrawn.y + canvasState.yTranslation) * canvasState.zoomLevel, 
-            areaDrawn.width * canvasState.zoomLevel, 
-            areaDrawn.height * canvasState.zoomLevel
-        );
-        canvasState.ctx.stroke();
-    })
-}
-
-function areCoordsOnScreen(x, y) {
-    return x > 0 && x < canvasState.canvas.width
-            && y > 0 && y < canvasState.canvas.height;
-}
-
-// Once the page has fully loaded, call main
-document.addEventListener('DOMContentLoaded', main, false);
-
-// Libraries
-
-// https://stackoverflow.com/a/23749355/
-function getAbsoluteHeight(el) {
-    // Get the DOM Node if you pass in a string
-    el = (typeof el === 'string') ? document.querySelector(el) : el; 
-
-    var styles = window.getComputedStyle(el);
-    var margin = parseFloat(styles['marginTop']) +
-                    parseFloat(styles['marginBottom']);
-
-    return Math.ceil(el.offsetHeight + margin);
-}
-
-function getAbsoluteWidth(el) {
-    // Get the DOM Node if you pass in a string
-    el = (typeof el === 'string') ? document.querySelector(el) : el; 
-
-    var styles = window.getComputedStyle(el);
-    var margin = parseFloat(styles['marginRight']) +
-                    parseFloat(styles['marginLeft']);
-
-    return Math.ceil(el.offsetWidth + margin);
 }

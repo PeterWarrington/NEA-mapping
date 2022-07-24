@@ -48,6 +48,21 @@
                 "--max-old-space-size=16384",
                 "--expose-gc"
             ]
+        },
+        {
+            "type": "pwa-node",
+            "request": "launch",
+            "name": "Launch MapAreasToImage.js",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}//src//MapAreasToImage.js",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}//src//",
+            "runtimeArgs": [
+                "--max-old-space-size=16384",
+                "--expose-gc"
+            ]
         }
     ]
 }

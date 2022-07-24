@@ -28,6 +28,8 @@ shared.MapDataObjectDB = class MapDataObjectDB {
     complexAreaIDs = []
     /** Caches complex area part IDs */
     complexAreaPartIDs = []
+    /** Tile IDs */
+    tileIDs = []
 
     /**
      * Adds a map object to the database, generating a random ID.
@@ -62,6 +64,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         if (ID.indexOf("AREA_") == 0) this.areaIDs.push(ID);
         if (ID.indexOf("COMPLEX-AREA_") == 0) this.complexAreaIDs.push(ID);
         if (ID.indexOf("COMPLEX-AREA-PART_") == 0) this.complexAreaPartIDs.push(ID);
+        if (ID.indexOf("TILE_") == 0) this.tileIDs.push(ID);
 
         return mapObject;
     }
@@ -103,6 +106,9 @@ shared.MapDataObjectDB = class MapDataObjectDB {
                 case "COMPLEX-AREA-PART":
                     ids = ids.concat(this.complexAreaPartIDs);
                     break;
+                case "TILE":
+                    ids = ids.concat(this.tileIDs);
+                    break;
                 default:
                     ids = ids.concat(this.db.keys().filter(id => id.indexOf(type + "_") == 0)); // Slow fallback
                     break;
@@ -127,6 +133,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         var areaIDs = Object.keys(db).filter(id => id.indexOf("AREA_") == 0);
         var complexAreaIDs = Object.keys(db).filter(id => id.indexOf("COMPLEX-AREA_") == 0);
         var complexAreaPartIDs = Object.keys(db).filter(id => id.indexOf("COMPLEX-AREA-PART_") == 0);
+        var tileIDs = Object.keys(db).filter(id => id.indexOf("TILE_") == 0);
 
         pointIDs.forEach(pointID => {
             let point = shared.MapPoint.mapPointFromObject(db[pointID]);
@@ -157,7 +164,12 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         complexAreaIDs.forEach(complexAreaID => {
             let complexArea = shared.ComplexArea.complexAreaFromObject(db[complexAreaID]);
             database.addMapObject(complexArea);
-        })
+        });
+
+        tileIDs.forEach(tileID => {
+            let tile = shared.Tile.tileFromObject(db[tileID]);
+            database.addMapObject(tile);
+        });
 
         return database;
     }
@@ -190,6 +202,8 @@ shared.MapDataObjectDB = class MapDataObjectDB {
             return "AREA";
         else if (mapObject instanceof shared.ComplexArea)
             return "COMPLEX-AREA";
+        else if (mapObject instanceof shared.Tile)
+            return "TILE";
         else
             return "GENERIC";
     }
@@ -299,6 +313,12 @@ shared.MapGridCache = class MapGridCache {
                     this.cacheMapObjectToGrid(complexArea, this.xGridCoord(point), this.yGridCoord(point));
                 })
             }
+        }
+
+        let tiles = this.database.getMapObjectsOfType("TILE");
+        for (let i = 0; i < tiles.length; i++) {
+            const tile = tiles[i];
+            this.cacheMapObjectToGrid(tile);
         }
     }
 
@@ -716,6 +736,29 @@ shared.ComplexArea = class ComplexArea extends shared.MapDataObject {
         complexArea.ID = object.ID;
         complexArea.metadata = object.metadata;
         return complexArea;
+    }
+}
+
+shared.Tile = class Tile extends shared.MapDataObject {
+    x
+    y
+    zoom
+
+    constructor(x, y, zoom) {
+        super();
+
+        this.x = x;
+        this.y = y;
+        this.zoom = zoom;
+    }
+
+    static tileFromObject(object) {
+        let tile = new shared.Tile(object.x, object.y, object.zoom);
+        if (tile.ID != undefined && tile.metadata != undefined) {
+            tile.ID = object.ID;
+            tile.metadata = object.metadata;
+        }
+        return tile;
     }
 }
 

@@ -399,7 +399,7 @@ class CanvasState {
             
             let currentURL;
             if (debug_testDB) currentURL = testingDBurl;
-            if (mapTilesOnlyUrl) currentURL = mapTilesOnlyUrl
+            else if (mapTilesOnly) currentURL = mapTilesOnlyUrl
             else currentURL = normalURL;
             
             this.httpReq.open("GET", currentURL);

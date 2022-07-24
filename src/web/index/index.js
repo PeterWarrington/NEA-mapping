@@ -229,8 +229,8 @@ class CanvasState {
 
         let tiles = canvasState.database.getMapObjectsOfType("TILE").filter((tile) =>
             tile.zoom == tileZoomLevel && (
-                tile.displayedX > -1000 && tile.displayedX < canvasState.canvas.width &&
-                tile.displayedY > -1000 && tile.displayedY < canvasState.canvas.height
+                tile.displayedX > -tile.length && tile.displayedX < canvasState.canvas.width &&
+                tile.displayedY > -tile.length && tile.displayedY < canvasState.canvas.height
             )
         );
 
@@ -1271,6 +1271,10 @@ class Tile extends shared.Tile {
         this.tileImage = new Image()
     }
 
+    get length() {
+        return 1000/(this.zoom/canvasState.zoomLevel)
+    }
+
     draw() {
         if (this.drawCount == 0)
             this.tileImage.src = `/mapAreaImages/${this.x}x${this.y}_${this.zoom}x.png`;
@@ -1279,7 +1283,7 @@ class Tile extends shared.Tile {
 
         this.tileImage.onload = () => {
             if (canvasState.getRoundedZoomLevel() == this.zoom) {
-                canvasState.ctx.drawImage(this.tileImage, this.displayedX, this.displayedY, 1000/(this.zoom/canvasState.zoomLevel), 1000/(this.zoom/canvasState.zoomLevel));
+                canvasState.ctx.drawImage(this.tileImage, this.displayedX, this.displayedY, this.length, this.length);
 
                 // Draw points and paths to draw (need to be drawn on top of tiles)
                 canvasState.pointsToDraw.forEach(point => point.drawPoint());

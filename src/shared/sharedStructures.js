@@ -25,7 +25,7 @@ shared.MapDataObjectDB = class MapDataObjectDB {
             "PATH": shared.Path, 
             "COMPLEX-AREA-PART": shared.ComplexAreaPart, 
             "COMPLEX-AREA": shared.ComplexArea,
-            
+
             "AREA": shared.Area, 
             // AREA must be after COMPLEX-AREA-PART as ComplexAreaPart extends Area, 
             // therefore when determining type of map object it must check if its an instance 
@@ -293,17 +293,13 @@ shared.MapGridCache = class MapGridCache {
         let currentDistanceFromRootSquare = 1;
         while (currentDistanceFromRootSquare <= margin) {
             let offset = this.gridSquareSize * currentDistanceFromRootSquare;
-            squares = squares.concat([
-                this.getSquare(mapObj, xGridCoord, yGridCoord),
-                this.getSquare(mapObj, xGridCoord, yGridCoord - offset),
-                this.getSquare(mapObj, xGridCoord, yGridCoord + offset),
-                this.getSquare(mapObj, xGridCoord - offset, yGridCoord),
-                this.getSquare(mapObj, xGridCoord - offset, yGridCoord - offset),
-                this.getSquare(mapObj, xGridCoord - offset, yGridCoord + offset),
-                this.getSquare(mapObj, xGridCoord + offset, yGridCoord),
-                this.getSquare(mapObj, xGridCoord + offset, yGridCoord - offset),
-                this.getSquare(mapObj, xGridCoord + offset, yGridCoord + offset)
-            ]);
+            for (let x = -1; x <= 1; x++) {
+                let xCoord = xGridCoord + (offset * x);
+                for (let y = -1; y <= 1; y++) {
+                    let yCoord = yGridCoord + (offset * y);
+                    squares.push(this.getSquare(mapObj, xCoord, yCoord));
+                }
+            }
             currentDistanceFromRootSquare++;
         }
 

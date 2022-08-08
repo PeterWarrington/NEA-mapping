@@ -16,20 +16,29 @@ shared.debug_on = true;
 shared.MapDataObjectDB = class MapDataObjectDB {
     /** Object, where key is the ID of the MapObject */
     db = new Map();
-    /** Caches point IDs */
-    pointIDs = []
-    /** Caches path IDs */
-    pathIDs = []
-    /** Caches part IDs */
-    partIDs = []
-    /** Caches area IDs */
-    areaIDs = []
-    /** Caches complex area IDs */
-    complexAreaIDs = []
-    /** Caches complex area part IDs */
-    complexAreaPartIDs = []
-    /** Tile IDs */
-    tileIDs = []
+
+    /** Matrix of table names to their class implementation */
+    static getTableNameToImplementationMatrix = () => {
+        return {
+            "POINT": shared.MapPoint, 
+            "PART": shared.PathPart,
+            "PATH": shared.Path, 
+            "COMPLEX-AREA-PART": shared.ComplexAreaPart, 
+            "COMPLEX-AREA": shared.ComplexArea,
+            
+            "AREA": shared.Area, 
+            // AREA must be after COMPLEX-AREA-PART as ComplexAreaPart extends Area, 
+            // therefore when determining type of map object it must check if its an instance 
+            // of ComplexAreaPart before it checks if its an instance of Area
+
+            "TILE": shared.Tile
+        }
+    };
+    /** List of table names (generated from tableNameToImplementationMatrix) */
+    static tableNameList = Object.keys(MapDataObjectDB.getTableNameToImplementationMatrix());
+
+    /** Caches IDs by table name, i.e. IDcache["POINT"] = ["POINT_a1234", "POINT_b4321", ...] */
+    IDcache = {};
 
     /**
      * Adds a map object to the database, generating a random ID.
@@ -58,13 +67,13 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         this.db.set(ID, mapObject);
 
         // Cache ID
-        if (ID.indexOf("POINT_") == 0) this.pointIDs.push(ID);
-        if (ID.indexOf("PART_") == 0) this.partIDs.push(ID);
-        if (ID.indexOf("PATH_") == 0) this.pathIDs.push(ID);
-        if (ID.indexOf("AREA_") == 0) this.areaIDs.push(ID);
-        if (ID.indexOf("COMPLEX-AREA_") == 0) this.complexAreaIDs.push(ID);
-        if (ID.indexOf("COMPLEX-AREA-PART_") == 0) this.complexAreaPartIDs.push(ID);
-        if (ID.indexOf("TILE_") == 0) this.tileIDs.push(ID);
+        for (let i = 0; i < MapDataObjectDB.tableNameList.length; i++) {
+            const tableName = MapDataObjectDB.tableNameList[i];
+            if (ID.indexOf(`${tableName}_`) == 0) {
+                if (this.IDcache[`${tableName}`] == undefined) this.IDcache[`${tableName}`] = [];
+                this.IDcache[`${tableName}`].push(ID);
+            };
+        }
 
         return mapObject;
     }
@@ -87,31 +96,13 @@ shared.MapDataObjectDB = class MapDataObjectDB {
 
         let ids = [];
         type.forEach(type => {
-            switch (type) {
-                case "POINT":
-                    ids = ids.concat(this.pointIDs);
-                    break;
-                case "PATH":
-                    ids = ids.concat(this.pathIDs);
-                    break;
-                case "PART":
-                    ids = ids.concat(this.partIDs);
-                    break;
-                case "AREA":
-                    ids = ids.concat(this.areaIDs);
-                    break;
-                case "COMPLEX-AREA":
-                    ids = ids.concat(this.complexAreaIDs);
-                    break;
-                case "COMPLEX-AREA-PART":
-                    ids = ids.concat(this.complexAreaPartIDs);
-                    break;
-                case "TILE":
-                    ids = ids.concat(this.tileIDs);
-                    break;
-                default:
-                    ids = ids.concat(this.db.keys().filter(id => id.indexOf(type + "_") == 0)); // Slow fallback
-                    break;
+            let tableIDcache = this.IDcache[type];
+
+            if (tableIDcache != undefined)
+                ids = ids.concat(tableIDcache);
+            else {
+                debugger;
+                ids = ids.concat(Array.from(this.db.keys()).filter(id => id.indexOf(type + "_") == 0)); // Slow fallback
             }
         });
 
@@ -127,48 +118,24 @@ shared.MapDataObjectDB = class MapDataObjectDB {
         var database = new shared.MapDataObjectDB();
 
         var db = object.db;
-        var pointIDs = Object.keys(db).filter(id => id.indexOf("POINT_") == 0);
-        var pathPartIDs = Object.keys(db).filter(id => id.indexOf("PART_") == 0);
-        var pathIDs = Object.keys(db).filter(id => id.indexOf("PATH_") == 0);
-        var areaIDs = Object.keys(db).filter(id => id.indexOf("AREA_") == 0);
-        var complexAreaIDs = Object.keys(db).filter(id => id.indexOf("COMPLEX-AREA_") == 0);
-        var complexAreaPartIDs = Object.keys(db).filter(id => id.indexOf("COMPLEX-AREA-PART_") == 0);
-        var tileIDs = Object.keys(db).filter(id => id.indexOf("TILE_") == 0);
 
-        pointIDs.forEach(pointID => {
-            let point = shared.MapPoint.mapPointFromObject(db[pointID]);
-            point.options = new shared.MapPoint().options; // Strip options, replace with default
-            database.addMapObject(point);
+        var ItemCache = {};
+
+        Object.values(db).forEach(item => {
+            MapDataObjectDB.tableNameList.forEach(tableName => {
+                if (item.ID.indexOf(`${tableName}_`) == 0) {
+                    if (ItemCache[tableName] == undefined) ItemCache[tableName] = [];
+                    ItemCache[tableName].push(item);
+                }
+            });
         });
 
-        pathPartIDs.forEach(pathPartID => {
-            let pathPart = shared.PathPart.pathPartFromObject(db[pathPartID]);
-            database.addMapObject(pathPart);
-        });
-
-        pathIDs.forEach(pathID => {
-            let path = shared.Path.pathFromObject(db[pathID]);
-            database.addMapObject(path);
-        });
-
-        areaIDs.forEach(areaID => {
-            let area = shared.Area.areaFromObject(db[areaID]);
-            database.addMapObject(area);
-        });
-
-        complexAreaPartIDs.forEach(complexAreaPartID => {
-            let complexAreaPart = shared.ComplexAreaPart.complexAreaPartFromObject(db[complexAreaPartID]);
-            database.addMapObject(complexAreaPart);
-        });
-
-        complexAreaIDs.forEach(complexAreaID => {
-            let complexArea = shared.ComplexArea.complexAreaFromObject(db[complexAreaID]);
-            database.addMapObject(complexArea);
-        });
-
-        tileIDs.forEach(tileID => {
-            let tile = shared.Tile.tileFromObject(db[tileID]);
-            database.addMapObject(tile);
+        Object.keys(ItemCache).forEach(tableName => {
+            let tableItemCache = ItemCache[tableName];
+            tableItemCache.forEach(item => {
+                let mapObject = MapDataObjectDB.getTableNameToImplementationMatrix()[tableName].mapObjectFromObject(item, true);
+                database.addMapObject(mapObject);
+            });
         });
 
         return database;
@@ -190,22 +157,16 @@ shared.MapDataObjectDB = class MapDataObjectDB {
     }
 
     static getMapObjectType(mapObject) {
-        if (mapObject instanceof shared.MapPoint)
-            return "POINT";
-        else if (mapObject instanceof shared.PathPart)
-            return "PART";
-        else if (mapObject instanceof shared.Path)
-            return "PATH";
-        else if (mapObject instanceof shared.ComplexAreaPart)
-            return "COMPLEX-AREA-PART"
-        else if (mapObject instanceof shared.Area)
-            return "AREA";
-        else if (mapObject instanceof shared.ComplexArea)
-            return "COMPLEX-AREA";
-        else if (mapObject instanceof shared.Tile)
-            return "TILE";
-        else
-            return "GENERIC";
+        let mapObjectTableNames = MapDataObjectDB.tableNameList;
+        let mapObjectClasses = Object.values(MapDataObjectDB.getTableNameToImplementationMatrix());
+        for (let i = 0; i < mapObjectClasses.length; i++) {
+            const mapObjectClass = mapObjectClasses[i];
+            if (mapObject instanceof mapObjectClass)
+                return mapObjectTableNames[i];
+        }
+
+        // Else
+        return "GENERIC";
     }
 }
 
@@ -478,10 +439,12 @@ shared.MapPoint = class MapPoint extends shared.MapDataObject {
      * @param {Object} object the MapPoint represented as a simple object to convert
      * @returns MapPoint
      */
-    static mapPointFromObject(object) {
+    static mapObjectFromObject(object, dbFromObject=false) {
         var mapPoint = new shared.MapPoint(object.x, object.y, object.metadata);
         mapPoint.ID = object.ID;
         mapPoint.metadata = object.metadata;
+
+        if (dbFromObject) mapPoint.options = new shared.MapPoint().options; // Strip options, replace with default
 
         return mapPoint;
     }
@@ -520,7 +483,7 @@ shared.PathPart = class PathPart extends shared.MapDataObject {
      * @param {Object} object the path part represented as a simple object to convert
      * @returns PathPart
      */
-    static pathPartFromObject (object) {
+    static mapObjectFromObject (object, dbFromObject=false) {
         var pathPart = new shared.PathPart(object.pointID, object.nextPathPartIDs, object.metadata);
         pathPart.ID = object.ID;
         pathPart.metadata = object.metadata;
@@ -582,7 +545,7 @@ shared.Path = class Path extends shared.MapDataObject {
      * @param {Object} object the path represented as a simple object to convert
      * @returns Path
      */
-    static pathFromObject(object) {
+    static mapObjectFromObject(object, dbFromObject=false) {
         var path = new shared.Path(object.startingPathPartID, object.data);
         path.ID = object.ID;
         path.metadata = object.metadata;
@@ -682,7 +645,7 @@ shared.Area = class Area extends shared.MapDataObject {
         return this.mapPointIDs.map(id => database.db.get(id));
     }
 
-    static areaFromObject(object) {
+    static mapObjectFromObject(object, dbFromObject=false) {
         let area = new shared.Area(object.mapPointIDs, object.data);
         area.ID = object.ID;
         area.metadata = object.metadata;
@@ -709,7 +672,7 @@ shared.ComplexAreaPart = class ComplexAreaPart extends shared.Area {
         this.data = data;
     }
 
-    static complexAreaPartFromObject(object) {
+    static mapObjectFromObject(object, dbFromObject=false) {
         let complexAreaPart = new shared.ComplexAreaPart(object.mapPointIDs, object.outerOrInner, object.data);
         complexAreaPart.ID = object.ID;
         complexAreaPart.metadata = object.metadata;
@@ -731,7 +694,7 @@ shared.ComplexArea = class ComplexArea extends shared.MapDataObject {
         this.innerAreaIDs = innerAreaIDs;
     }
 
-    static complexAreaFromObject(object) {
+    static mapObjectFromObject(object, dbFromObject=false) {
         let complexArea = new shared.ComplexArea(object.outerAreaID, object.innerAreaIDs);
         complexArea.ID = object.ID;
         complexArea.metadata = object.metadata;
@@ -752,7 +715,7 @@ shared.Tile = class Tile extends shared.MapDataObject {
         this.zoom = zoom;
     }
 
-    static tileFromObject(object) {
+    static mapObjectFromObject(object, dbFromObject=false) {
         let tile = new shared.Tile(object.x, object.y, object.zoom);
         if (tile.ID != undefined && tile.metadata != undefined) {
             tile.ID = object.ID;

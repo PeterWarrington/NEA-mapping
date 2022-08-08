@@ -32,7 +32,7 @@ module.exports.mapTilesToDb = function (shared, database) {
 
     for (let i = 0; i < mapTilesList.length; i++) {
         const mapTileObj = mapTilesList[i];
-        mapTileMapObj = shared.Tile.tileFromObject(mapTileObj);
+        mapTileMapObj = shared.Tile.mapObjectFromObject(mapTileObj);
         database.addMapObject(mapTileMapObj);
     }
 }

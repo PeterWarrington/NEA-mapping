@@ -537,10 +537,10 @@ class CanvasState {
                     let point;
 
                     if (mapObject.ID.indexOf("POINT") == 0)
-                        point = MapPoint.mapPointFromObject(mapObject);
+                        point = MapPoint.mapObjectFromObject(mapObject);
                     else if (mapObject.ID.indexOf("PATH") == 0) {
-                        let path = Path.pathFromObject(mapObject);
-                        path.midpoint = MapPoint.mapPointFromObject(mapObject.midpoint);
+                        let path = Path.mapObjectFromObject(mapObject);
+                        path.midpoint = MapPoint.mapObjectFromObject(mapObject.midpoint);
                         point = path.midpoint;
                         // Add metadata of path to point
                         point.metadata.path = path.metadata;
@@ -626,7 +626,7 @@ class CanvasState {
 
             let responseArray = JSON.parse(http.responseText);
 
-            let pointArray = responseArray.map(simplePoint => shared.MapPoint.mapPointFromObject(simplePoint));
+            let pointArray = responseArray.map(simplePoint => shared.MapPoint.mapObjectFromObject(simplePoint));
 
             let path = Path.connectSequentialPoints(pointArray, canvasState.database);
             path.metadata.pathType = {};
@@ -1242,7 +1242,7 @@ shared.ComplexArea = ComplexArea;
         this.data = data;
     }
 
-    static complexAreaPartFromObject(object) {
+    static mapObjectFromObject(object, dbFromObject=false) {
         let complexAreaPart = new shared.ComplexAreaPart(object.mapPointIDs, object.outerOrInner, object.data);
         complexAreaPart.ID = object.ID;
         complexAreaPart.metadata = object.metadata;

@@ -12,3 +12,5 @@ old/
 src/mapAreaImages
 docs/~$ll document.docx
 node_modules
+src_rust/Cargo.lock
+src_rust/target

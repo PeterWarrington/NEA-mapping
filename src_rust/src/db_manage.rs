@@ -1,3 +1,4 @@
+#[path = "map_objects.rs"]
 mod map_objects;
 
 use std::str::from_utf8;
@@ -5,17 +6,13 @@ use map_objects::*;
 use mysql::*;
 use mysql::prelude::*;
 
-pub fn main() {
+pub fn create_connection() -> PooledConn {
     let database_url = "mysql://root:PASSWORD@localhost:3306/untitled_mapping";
     let pool: Pool = Pool::new(database_url).expect("Error creating db pool.");
 
-    let mut db_connection : PooledConn = pool.get_conn().expect("");
+    let db_connection : PooledConn = pool.get_conn().expect("");
 
-    let map_objects= get_map_objects(&mut db_connection);
-
-    for map_object in map_objects {
-        println!("{:?}", map_object);
-    }
+    return db_connection;
 }
 
 pub fn db_str_to_str(db_str: Vec<u8>) -> String {

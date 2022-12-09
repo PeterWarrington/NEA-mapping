@@ -25,12 +25,6 @@ pub struct Point {
     pub y: f32
 }
 
-impl Point {
-    pub fn from_db_table(x: f32, y: f32) -> Point{
-        return Point {x, y};
-    }
-}
-
 #[derive(Debug)]
 pub struct Path {
     pub starting_path_part_id: String

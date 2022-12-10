@@ -1,5 +1,5 @@
 #[path = "map_objects.rs"]
-mod map_objects;
+pub mod map_objects;
 
 use std::str::from_utf8;
 use map_objects::*;

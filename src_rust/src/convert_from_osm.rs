@@ -1,7 +1,6 @@
 use std::{fs::{File}, collections::HashMap, io::BufReader};
 
 use db_manage::map_objects::*;
-use uuid::Uuid;
 use xmltree::Element;
 
 #[path = "map_objects.rs"]
@@ -10,8 +9,10 @@ mod map_objects;
 mod db_manage;
 
 fn main() {
-    
+    println!("Reading from file...");
     let osm_data = Element::parse(BufReader::new(File::open("../docs/cambridgeshire-latest.osm").unwrap())).unwrap();
+    println!("Finished reading from file and serialising XML data.");
+    
     let mut nodes: HashMap<String, Element> = HashMap::new();
     let mut ways = Vec::new();
     let mut filtered_ways = Vec::new();
@@ -19,6 +20,7 @@ fn main() {
 
     let db_connection = &mut db_manage::create_connection();
 
+    println!("Iterating through elements and sorting them into corresponding structures...");
     for element in osm_data.children {
         let element = element.as_element();
         if element.is_some() {
@@ -35,18 +37,29 @@ fn main() {
             }
         }
     }
+    println!("Iterating through elements complete.");
 
+    println!("Determining way type of each way...");
     for way in ways {
         let way_type = get_way_type(&way);
         if !way_type.eq("no_way") {
             filtered_ways.push(way);
         }
     }
+    println!("Way type determination complete.");
 
+
+    let mut way_count = 0;
+    let way_len = filtered_ways.len();
+
+    println!("Iterating through ways and creating map objects in db...");
     for way in filtered_ways {
+        way_count = way_count + 1;
+        print!("\rProcessing {}/{}",way_count, way_len);
+        
         let way_type = get_way_type(&way);
 
-        if (way_type.eq("other")) {
+        if way_type.eq("other") {
             continue;
         }
 
@@ -86,20 +99,53 @@ fn main() {
             let y = radius * ((std::f32::consts::PI / 4.0) + (node.attributes.get("lat").unwrap().parse::<f32>().unwrap() / 2.0)).tan().abs().log10();
 
             let map_point = Point {x, y};
-            let base_map_object = BaseMapObject {
-                id: Uuid::new_v4().to_string(),
-                object_type: "POINT".to_string(),
-                metadata: "{}".to_string()
-            };
+            let base_map_object = BaseMapObject::new("POINT".to_string());
 
-            let map_object: MapObject = MapObject {
+            let map_object_point: MapObject = MapObject {
                 base_object: base_map_object, 
                 extended_object: ExtendedMapObjectEnum::Point(map_point)
             };
 
-            db_manage::add_map_object_to_db(db_connection, &map_object);
+
+            // Add map object to db
+            db_manage::add_map_object_to_db(db_connection, &map_object_point).expect("Error adding point to DB.");
+            map_points_of_way.push(map_object_point);
         }
+
+        let mut starting_path_part_id= Option::None;
+
+        for i in 0..(map_points_of_way.len() - 1) {
+            let path_part = PathPart {
+                point_id: map_points_of_way[i].base_object.id.clone(),
+                next_path_part_ids: vec![map_points_of_way[i+1].base_object.id.clone()]
+            };
+            let path_part_base = BaseMapObject::new("PART".to_string());
+            let path_part_map_object = MapObject {
+                base_object: path_part_base,
+                extended_object: ExtendedMapObjectEnum::PathPart(path_part)
+            };
+
+            if (i == 0) {
+                starting_path_part_id = Some(path_part_map_object.base_object.id.clone());
+            }
+
+            db_manage::add_map_object_to_db(db_connection, &path_part_map_object).expect("Error adding part to DB.");
+        }
+
+        // Create path
+        let path_extended_obj = Path {
+            starting_path_part_id: starting_path_part_id.unwrap()
+        };
+        let path_base_obj = BaseMapObject::new("PATH".to_string());
+        let path_map_obj = MapObject {
+            base_object: path_base_obj,
+            extended_object: ExtendedMapObjectEnum::Path(path_extended_obj)
+        };
+
+        // Add path to db
+        db_manage::add_map_object_to_db(db_connection, &path_map_obj).expect("Error adding path to DB.");
     }
+    println!("All map objects added to db.");
 }
 
 fn get_way_type(way: &Element) -> String {

@@ -1,6 +1,7 @@
 #[path = "map_objects.rs"]
 pub mod map_objects;
 
+use std::ops::Add;
 use std::str::from_utf8;
 use map_objects::*;
 use mysql::*;
@@ -43,55 +44,53 @@ pub fn get_map_objects(db_connection: &mut PooledConn) -> Vec<MapObject> {
     return map_objects
 }
 
-pub fn add_map_object_to_db(db_connection: &mut PooledConn, map_object: &MapObject) -> Result<()> {
-    match &map_object.extended_object {
-        ExtendedMapObjectEnum::Point(point) => {
-            match add_base_map_object_to_db(db_connection, &map_object, "POINT".to_string()) {
-                Ok(_) => {
-                    return db_connection.query_drop(
-                        format!(
-                            "INSERT INTO `untitled_mapping`.`POINT` (`ID`, `POSITION_X`, `POSITION_Y`) VALUES ('{}', {}, {});",
-                        map_object.base_object.id, point.x, point.y)
-                    );
-                },
-                Err(x) => return Err(x),
-            };
-            
+pub fn add_map_objects_to_db(db_connection: &mut PooledConn, map_objects: &Vec<&MapObject>) -> Result<()> {
+    let mut full_query: String = String::new();
+
+    for map_object in map_objects {
+        full_query.push_str(get_query_add_base_map_object_to_db(db_connection, &map_object).as_str());
+
+        match &map_object.extended_object {
+            ExtendedMapObjectEnum::Point(point) => {
+                full_query.push_str(
+                    format!(
+                        "INSERT INTO `untitled_mapping`.`POINT` (`ID`, `POSITION_X`, `POSITION_Y`) VALUES ('{}', {}, {});",
+                    map_object.base_object.id, point.x, point.y).as_str()
+                )
+            }
+            ExtendedMapObjectEnum::Path(path) => {
+                full_query.push_str(
+                    format!(
+                        "INSERT INTO `untitled_mapping`.`PATH` (`ID`, `STARTING_PATH_PART_ID`) VALUES ('{}', '{}');",
+                    map_object.base_object.id, path.starting_path_part_id).as_str()
+                );
+            },
+            ExtendedMapObjectEnum::PathPart(part) => {
+                full_query.push_str(
+                    format!(
+                        "INSERT INTO `untitled_mapping`.`PATH_PART` (`ID`, `POINT_ID`) VALUES ('{}', '{}');",
+                    map_object.base_object.id, part.point_id).as_str()
+                );
+                full_query.push_str(
+                    format!(
+                        "INSERT INTO `untitled_mapping`.`PATH_PART_NEXT_PART_LINK` (`A_ID`, `B_ID`) VALUES ('{}', '{}');",
+                    map_object.base_object.id, part.next_path_part_ids.first().unwrap()).as_str()
+                );
+            },
+            ExtendedMapObjectEnum::None => todo!(),
         }
-        ExtendedMapObjectEnum::Path(path) => {
-            match add_base_map_object_to_db(db_connection, &map_object, "PATH".to_string()) {
-                Ok(_) => {
-                    return db_connection.query_drop(
-                        format!(
-                            "INSERT INTO `untitled_mapping`.`PATH` (`ID`, `STARTING_PATH_PART_ID`) VALUES ('{}', '{}');",
-                        map_object.base_object.id, path.starting_path_part_id)
-                    );
-                },
-                Err(x) => return Err(x),
-            };
-        },
-        ExtendedMapObjectEnum::PathPart(part) => {
-            match add_base_map_object_to_db(db_connection, &map_object, "PATH_PART".to_string()) {
-                Ok(_) => {
-                    return db_connection.query_drop(
-                        format!(
-                            "INSERT INTO `untitled_mapping`.`PATH_PART` (`ID`, `POINT_ID`) VALUES ('{}', '{}');",
-                        map_object.base_object.id, part.point_id)
-                    );
-                },
-                Err(x) => return Err(x),
-            };
-        },
-        ExtendedMapObjectEnum::None => todo!(),
     }
+    return db_connection.query_drop(full_query);
 }
 
-fn add_base_map_object_to_db(db_connection: &mut PooledConn, map_object: &MapObject, object_type: String) -> Result<()>  {
-    return db_connection.query_drop(
-        format!(
+pub fn add_map_object_to_db(db_connection: &mut PooledConn, map_object: &MapObject) -> Result<()> {
+    return add_map_objects_to_db(db_connection, &vec![map_object]);
+}
+
+fn get_query_add_base_map_object_to_db(db_connection: &mut PooledConn, map_object: &MapObject) -> String  {
+    return format!(
             "INSERT INTO `untitled_mapping`.`MAP_OBJECT` (`ID`, `TYPE`, `METADATA`) VALUES ('{}', '{}', '{{}}');",
-        map_object.base_object.id, object_type)
-    );
+        map_object.base_object.id, map_object.base_object.object_type)
 }
 
 pub fn get_extended_map_object(db_connection: &mut PooledConn, base_object: &BaseMapObject) -> Result<ExtendedMapObjectEnum> {
@@ -125,20 +124,30 @@ pub fn get_extended_map_object(db_connection: &mut PooledConn, base_object: &Bas
             None => Ok(ExtendedMapObjectEnum::None)
         }
     } else if base_object.object_type.eq("PATH_PART") {
-        let query_result: Option<(Vec<u8>, Vec<u8>)> = match db_connection.query_first(
+        let query_result_point_id: Option<(Vec<u8>, Vec<u8>)> = match db_connection.query_first(
             format!("SELECT * FROM PATH_PART WHERE ID = '{}'", base_object.id)
         ) {
             Ok (x) => x,
             Err (_) => None
         };
 
-        match query_result {
-            Some(x) => {
-                let point_id = db_str_to_str(x.1);
-                return Ok(ExtendedMapObjectEnum::PathPart(PathPart {point_id}));
-            },
-            None => Ok(ExtendedMapObjectEnum::None)
-        }
+        let point_id = db_str_to_str(query_result_point_id.unwrap().1);
+
+        let query_result_b_part_id: Option<(Vec<u8>, Vec<u8>)> = match db_connection.query_first(
+            format!("SELECT * FROM PATH_PART WHERE A_ID = '{}'", base_object.id)
+        ) {
+            Ok (x) => x,
+            Err (_) => None
+        };
+
+        let next_path_part = db_str_to_str(query_result_b_part_id.unwrap().1);
+
+        let path_part = PathPart {
+            point_id, 
+            next_path_part_ids: vec![next_path_part]
+        };
+
+        return Ok(ExtendedMapObjectEnum::PathPart(path_part));
     } else {
         return Ok(ExtendedMapObjectEnum::None)
     }

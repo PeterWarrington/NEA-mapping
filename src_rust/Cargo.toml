@@ -12,6 +12,7 @@ path = "src/server.rs"
 [[bin]]
 name = "convert_from_osm"
 path = "src/convert_from_osm.rs"
+opt-level = 3
 
 [dependencies]
 mysql = "*"
